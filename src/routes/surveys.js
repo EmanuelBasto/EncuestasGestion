@@ -1,0 +1,265 @@
+import { Router } from 'express';
+import { body, validationResult } from 'express-validator';
+import { query } from '../db.js';
+import requireAuth from '../middleware/requireAuth.js';
+import crypto from 'crypto';
+
+const router = Router();
+
+// Generar token único para enlaces
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Crear nueva encuesta
+router.post(
+  '/',
+  requireAuth,
+  [
+    body('titulo').trim().notEmpty().withMessage('Título requerido'),
+    body('titulo').isLength({ max: 200 }).withMessage('Título muy largo')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ ok: false, errors: errors.array() });
+    }
+
+    const { titulo } = req.body;
+    const propietario_id = req.user.sub;
+
+    try {
+      // Crear la encuesta
+      const { rows: surveyRows } = await query(
+        `INSERT INTO encuestas (propietario_id, titulo)
+         VALUES ($1, $2)
+         RETURNING id, titulo, activa, creada_en`,
+        [propietario_id, titulo]
+      );
+
+      const encuesta = surveyRows[0];
+
+      // Crear enlaces automáticamente
+      const publicToken = generateToken();
+      const resultsToken = generateToken();
+
+      await query(
+        `INSERT INTO enlaces_encuesta (encuesta_id, tipo, token)
+         VALUES ($1, 'publico', $2), ($1, 'resultados', $3)`,
+        [encuesta.id, publicToken, resultsToken]
+      );
+
+      res.status(201).json({
+        ok: true,
+        encuesta: {
+          ...encuesta,
+          enlaces: {
+            publico: publicToken,
+            resultados: resultsToken
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error creando encuesta:', error);
+      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+    }
+  }
+);
+
+// Obtener todas las encuestas del usuario
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT e.id, e.titulo, e.activa, e.creada_en,
+              COUNT(DISTINCT p.id) as total_preguntas,
+              COUNT(DISTINCT env.id) as total_respuestas
+       FROM encuestas e
+       LEFT JOIN preguntas p ON e.id = p.encuesta_id
+       LEFT JOIN envios env ON e.id = env.encuesta_id
+       WHERE e.propietario_id = $1
+       GROUP BY e.id, e.titulo, e.activa, e.creada_en
+       ORDER BY e.creada_en DESC`,
+      [req.user.sub]
+    );
+
+    res.json({ ok: true, encuestas: rows });
+  } catch (error) {
+    console.error('Error obteniendo encuestas:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Obtener una encuesta específica con sus preguntas
+router.get('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar que la encuesta pertenece al usuario
+    const { rows: surveyRows } = await query(
+      'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
+      [id, req.user.sub]
+    );
+
+    if (!surveyRows.length) {
+      return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+    }
+
+    const encuesta = surveyRows[0];
+
+    // Obtener preguntas con sus opciones
+    const { rows: questionsRows } = await query(
+      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+              COALESCE(
+                json_agg(
+                  json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
+                  ORDER BY o.posicion
+                ) FILTER (WHERE o.id IS NOT NULL),
+                '[]'
+              ) as opciones
+       FROM preguntas p
+       LEFT JOIN opciones o ON p.id = o.pregunta_id
+       WHERE p.encuesta_id = $1
+       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion
+       ORDER BY p.posicion`,
+      [id]
+    );
+
+    res.json({
+      ok: true,
+      encuesta: {
+        ...encuesta,
+        preguntas: questionsRows
+      }
+    });
+  } catch (error) {
+    console.error('Error obteniendo encuesta:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Actualizar encuesta
+router.put(
+  '/:id',
+  requireAuth,
+  [
+    body('titulo').optional().trim().notEmpty().withMessage('Título requerido'),
+    body('titulo').optional().isLength({ max: 200 }).withMessage('Título muy largo'),
+    body('activa').optional().isBoolean().withMessage('Estado activa debe ser booleano')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ ok: false, errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { titulo, activa } = req.body;
+
+    try {
+      // Verificar que la encuesta pertenece al usuario
+      const { rows: surveyRows } = await query(
+        'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
+        [id, req.user.sub]
+      );
+
+      if (!surveyRows.length) {
+        return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+      }
+
+      // Construir query dinámicamente
+      const updates = [];
+      const values = [];
+      let paramCount = 1;
+
+      if (titulo !== undefined) {
+        updates.push(`titulo = $${paramCount}`);
+        values.push(titulo);
+        paramCount++;
+      }
+
+      if (activa !== undefined) {
+        updates.push(`activa = $${paramCount}`);
+        values.push(activa);
+        paramCount++;
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ ok: false, message: 'No hay campos para actualizar' });
+      }
+
+      values.push(id, req.user.sub);
+
+      const { rows } = await query(
+        `UPDATE encuestas 
+         SET ${updates.join(', ')}
+         WHERE id = $${paramCount} AND propietario_id = $${paramCount + 1}
+         RETURNING id, titulo, activa, creada_en`,
+        values
+      );
+
+      res.json({ ok: true, encuesta: rows[0] });
+    } catch (error) {
+      console.error('Error actualizando encuesta:', error);
+      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+    }
+  }
+);
+
+// Eliminar encuesta
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { rowCount } = await query(
+      'DELETE FROM encuestas WHERE id = $1 AND propietario_id = $2',
+      [id, req.user.sub]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+    }
+
+    res.json({ ok: true, message: 'Encuesta eliminada correctamente' });
+  } catch (error) {
+    console.error('Error eliminando encuesta:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Obtener estadísticas de una encuesta
+router.get('/:id/stats', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar que la encuesta pertenece al usuario
+    const { rows: surveyRows } = await query(
+      'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
+      [id, req.user.sub]
+    );
+
+    if (!surveyRows.length) {
+      return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+    }
+
+    // Obtener estadísticas básicas
+    const { rows: statsRows } = await query(
+      `SELECT 
+         COUNT(DISTINCT env.id) as total_respuestas,
+         COUNT(DISTINCT p.id) as total_preguntas,
+         MIN(env.enviado_en) as primera_respuesta,
+         MAX(env.enviado_en) as ultima_respuesta
+       FROM encuestas e
+       LEFT JOIN preguntas p ON e.id = p.encuesta_id
+       LEFT JOIN envios env ON e.id = env.encuesta_id
+       WHERE e.id = $1`,
+      [id]
+    );
+
+    res.json({ ok: true, estadisticas: statsRows[0] });
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+export default router;
