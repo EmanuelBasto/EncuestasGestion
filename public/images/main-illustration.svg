@@ -1,0 +1,85 @@
+<svg width="500" height="400" viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo azul claro -->
+  <rect width="500" height="400" fill="#E3F2FD"/>
+  
+  <!-- Cuadros en la pared -->
+  <rect x="50" y="50" width="60" height="40" rx="5" fill="white" stroke="#333" stroke-width="2"/>
+  <rect x="390" y="50" width="60" height="40" rx="5" fill="white" stroke="#333" stroke-width="2"/>
+  
+  <!-- Contenido de los cuadros -->
+  <rect x="60" y="60" width="40" height="20" fill="#BDBDBD"/>
+  <rect x="400" y="60" width="40" height="20" fill="#BDBDBD"/>
+  
+  <!-- Cajón -->
+  <rect x="50" y="300" width="80" height="60" rx="5" fill="white" stroke="#333" stroke-width="2"/>
+  <circle cx="70" cy="320" r="3" fill="#333"/>
+  <circle cx="90" cy="320" r="3" fill="#333"/>
+  <circle cx="110" cy="320" r="3" fill="#333"/>
+  
+  <!-- Hojas decorativas -->
+  <ellipse cx="420" cy="200" rx="30" ry="20" fill="#1976D2"/>
+  <ellipse cx="440" cy="190" rx="25" ry="15" fill="#1976D2"/>
+  
+  <!-- Portapapeles principal -->
+  <rect x="200" y="80" width="120" height="200" rx="10" fill="#E0E0E0" stroke="#333" stroke-width="3"/>
+  
+  <!-- Clip del portapapeles -->
+  <rect x="300" y="70" width="20" height="30" rx="10" fill="#1976D2"/>
+  
+  <!-- Papel del portapapeles -->
+  <rect x="210" y="90" width="100" height="180" rx="5" fill="white"/>
+  
+  <!-- Líneas del checklist -->
+  <rect x="220" y="110" width="60" height="2" fill="#1976D2"/>
+  <rect x="220" y="130" width="50" height="2" fill="#1976D2"/>
+  <rect x="220" y="150" width="70" height="2" fill="#1976D2"/>
+  <rect x="220" y="170" width="40" height="2" fill="#1976D2"/>
+  
+  <!-- Checkmarks -->
+  <rect x="250" y="105" width="15" height="15" rx="2" fill="#1976D2"/>
+  <path d="M255 112l3 3 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <rect x="240" y="125" width="15" height="15" rx="2" fill="#1976D2"/>
+  <path d="M245 132l3 3 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <rect x="260" y="145" width="15" height="15" rx="2" fill="#1976D2"/>
+  <path d="M265 152l3 3 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <rect x="230" y="165" width="15" height="15" rx="2" fill="#1976D2"/>
+  <path d="M235 172l3 3 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Persona -->
+  <!-- Cabeza -->
+  <circle cx="260" cy="220" r="12" fill="#FFB74D"/>
+  
+  <!-- Cuerpo -->
+  <rect x="248" y="232" width="24" height="40" fill="#FFB74D"/>
+  
+  <!-- Camisa a rayas -->
+  <rect x="248" y="232" width="24" height="30" fill="#1976D2"/>
+  <rect x="248" y="240" width="24" height="3" fill="white"/>
+  <rect x="248" y="248" width="24" height="3" fill="white"/>
+  <rect x="248" y="256" width="24" height="3" fill="white"/>
+  
+  <!-- Pantalones -->
+  <rect x="250" y="272" width="20" height="25" fill="#333"/>
+  
+  <!-- Brazo levantado -->
+  <ellipse cx="280" cy="240" rx="8" ry="20" fill="#FFB74D" transform="rotate(45 280 240)"/>
+  
+  <!-- Mano -->
+  <circle cx="290" cy="225" r="4" fill="#FFB74D"/>
+  
+  <!-- Portapapeles en la mano -->
+  <rect x="285" y="220" width="8" height="10" rx="1" fill="#E0E0E0" stroke="#333" stroke-width="1"/>
+  
+  <!-- Contenedor de lápices -->
+  <rect x="350" y="320" width="30" height="40" rx="5" fill="white" stroke="#333" stroke-width="2"/>
+  <rect x="355" y="325" width="20" height="30" fill="white"/>
+  
+  <!-- Lápices -->
+  <rect x="358" y="330" width="2" height="20" fill="white"/>
+  <rect x="362" y="330" width="2" height="20" fill="white"/>
+  <rect x="366" y="330" width="2" height="20" fill="white"/>
+  <rect x="370" y="330" width="2" height="20" fill="white"/>
+</svg>

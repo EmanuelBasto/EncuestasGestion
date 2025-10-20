@@ -1,0 +1,20 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Persona -->
+  <circle cx="20" cy="12" r="6" stroke="#333" stroke-width="2" fill="none"/>
+  <path d="M8 28c0-6 5-10 12-10s12 4 12 10" stroke="#333" stroke-width="2" fill="none"/>
+  
+  <!-- Documento -->
+  <rect x="12" y="18" width="16" height="20" rx="2" stroke="#333" stroke-width="2" fill="none"/>
+  <rect x="14" y="22" width="12" height="1" fill="#333"/>
+  <rect x="14" y="25" width="10" height="1" fill="#333"/>
+  <rect x="14" y="28" width="8" height="1" fill="#333"/>
+  
+  <!-- Clip del documento -->
+  <path d="M26 18c0-1 1-2 2-2h2c1 0 2 1 2 2v2c0 1-1 2-2 2h-2c-1 0-2-1-2-2v-2z" stroke="#333" stroke-width="2" fill="none"/>
+  
+  <!-- Burbuja de diálogo -->
+  <path d="M32 8c0-2 2-4 4-4s4 2 4 4c0 2-2 4-4 4l-2 2-2-2c-2 0-4-2-4-4z" stroke="#333" stroke-width="2" fill="none"/>
+  
+  <!-- Checkmark -->
+  <path d="M30 6l2 2 4-4" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

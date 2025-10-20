@@ -6,34 +6,59 @@
 }
 
 body {
-    font-family: 'Arial', sans-serif;
-    background-color: #E3F2FD; /* Azul claro como en las imágenes */
+    font-family: 'Inter', sans-serif;
+    background-color: #95BAF5; /* Color azul específico solicitado */
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    border: 3px solid #1976D2; /* Borde azul oscuro como en la imagen */
 }
 
-/* Contenedor principal */
-.container {
-    display: flex;
+/* Contenedor principal con título */
+.main-container {
     width: 100%;
     max-width: 1200px;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     padding: 20px;
+}
+
+.main-title {
+    font-family: 'Amiri', serif;
+    font-size: 36px;
+    font-weight: bold;
+    color: #333;
+    text-align: left;
+    margin-bottom: 30px;
+    align-self: flex-start;
+}
+
+/* Contenedor del contenido */
+.container {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    justify-content: center;
+    flex: 1;
+    gap: 40px;
+    padding-top: 20px;
 }
 
 /* Card del formulario */
 .form-card {
-    background: white;
+    background: white; /* Fondo blanco como solicitado */
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
     padding: 40px;
-    width: 100%;
-    max-width: 400px;
+    width: 500px;
+    height: 500px;
+    max-width: none;
     position: relative;
+    border: 2px solid #E0E0E0;
 }
 
 /* Header del formulario */
@@ -42,37 +67,40 @@ body {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 30px;
+    gap: 20px;
+    position: relative;
 }
 
 .form-title {
-    font-size: 28px;
-    font-weight: bold;
+    font-family: 'Poppins', sans-serif;
+    font-size: 40px;
+    font-weight: 400px;
     color: #333;
     margin: 0;
+    white-space: nowrap;
+    flex-shrink: 1;
 }
 
 .form-icon {
-    width: 40px;
-    height: 40px;
-    background: #333;
-    border-radius: 50%;
+    width: 145px;
+    height: 105px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 20px;
+    flex-shrink: 0;
 }
 
 /* Campos de formulario */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 30px;
 }
 
 .form-label {
     display: block;
     margin-bottom: 8px;
     color: #333;
-    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
 }
 
 .form-input {
@@ -81,8 +109,9 @@ body {
     border: 1px solid #ddd;
     border-radius: 8px;
     font-size: 16px;
-    background: #f8f9fa;
+    background: #ACACAC; /* Color específico solicitado */
     transition: border-color 0.3s ease;
+    font-family: 'Inter', sans-serif;
 }
 
 .form-input:focus {
@@ -92,13 +121,13 @@ body {
 }
 
 .form-input::placeholder {
-    color: #999;
+    color: #666; /* Gris más oscuro para el placeholder */
 }
 
 /* Botón principal */
 .btn-primary {
     width: 100%;
-    background: #007bff;
+    background: #007BFF; /* Color específico solicitado */
     color: white;
     border: none;
     padding: 14px 20px;
@@ -108,6 +137,7 @@ body {
     cursor: pointer;
     transition: background-color 0.3s ease;
     margin-bottom: 20px;
+    font-family: 'Inter', sans-serif;
 }
 
 .btn-primary:hover {
@@ -147,6 +177,8 @@ body {
     font-size: 14px;
     display: block;
     margin-bottom: 10px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
 }
 
 .form-link:hover {
@@ -170,9 +202,15 @@ body {
 
 .illustration-image {
     width: 100%;
-    max-width: 400px;
+    max-width: 500px;
     height: auto;
     margin-bottom: 20px;
+}
+
+.main-illustration {
+    width: 100%;
+    height: auto;
+    opacity: 0.6; /* 60% de opacidad */
 }
 
 /* Estrellas de calificación */
@@ -184,10 +222,8 @@ body {
 }
 
 .star {
-    width: 20px;
-    height: 20px;
-    background: #FFD700;
-    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    width: 40px;
+    height: 40px;
 }
 
 /* Modal para reset de contraseña */
@@ -295,6 +331,7 @@ body {
     .container {
         flex-direction: column;
         padding: 10px;
+        gap: 20px;
     }
     
     .illustration {
@@ -307,6 +344,11 @@ body {
     
     .modal-content {
         padding: 30px 20px;
+    }
+    
+    .main-title {
+        font-size: 20px;
+        margin-bottom: 20px;
     }
 }
 
@@ -327,8 +369,8 @@ body {
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
-    color: #999;
-    font-size: 18px;
+    width: 20px;
+    height: 20px;
 }
 
 .input-group {
@@ -336,6 +378,35 @@ body {
 }
 
 .input-group .form-input {
-    padding-right: 45px;
+    padding-right: 0px;
+}
+
+/* Estilos específicos para la página de registro */
+.register-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.register-form-card {
+    background: #F5F5F5; /* Gris claro como en la imagen */
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 500px;
+    max-width: none;
+    border: 2px solid #E0E0E0;
+}
+
+.register-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 32px;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    margin-bottom: 30px;
+    margin-top: 0;
 }
 
