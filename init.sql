@@ -1,13 +1,25 @@
 CREATE EXTENSION IF NOT EXISTS citext;
 
--- USUARIOS (creador)
+-- USUARIOS (creadores de encuestas)
 CREATE TABLE usuarios (
   id BIGSERIAL PRIMARY KEY,
   email CITEXT NOT NULL UNIQUE,
-  nombre TEXT,
-  hash_password TEXT,
+  nombre TEXT NOT NULL,
+  hash_password TEXT NOT NULL,
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- TOKENS PARA RESET DE CONTRASEÑA
+CREATE TABLE tokens_reset (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expiracion TIMESTAMPTZ NOT NULL,
+  usado BOOLEAN NOT NULL DEFAULT FALSE,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_tokens_reset_hash ON tokens_reset(token_hash);
+CREATE INDEX ix_tokens_reset_user ON tokens_reset(user_id);
 
 -- ENCUESTAS
 CREATE TABLE encuestas (

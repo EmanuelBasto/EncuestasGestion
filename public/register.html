@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Cuenta - Sistema de Encuestas</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Formulario de Registro -->
+        <div class="form-card fade-in">
+            <div class="form-header">
+                <h1 class="form-title">Crear cuenta</h1>
+                <div class="form-icon">📝</div>
+            </div>
+
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="nombre" class="form-label">
+                        Nombre completo <span class="required">(obligatorio)*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="nombre" 
+                        name="nombre" 
+                        class="form-input" 
+                        placeholder="Tu nombre"
+                        required
+                    >
+                    <div class="error-message" id="nombreError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" class="form-label">
+                        Correo electrónico <span class="required">(obligatorio)*</span>
+                    </label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-input" 
+                        placeholder="Correo"
+                        required
+                    >
+                    <div class="error-message" id="emailError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        Nueva contraseña <span class="required">(obligatorio)*</span>
+                    </label>
+                    <div class="input-group">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            class="form-input" 
+                            placeholder="Nueva contraseña (mínimo 6 caracteres)"
+                            required
+                            minlength="6"
+                        >
+                        <span class="icon-eye" id="togglePassword">👁️</span>
+                    </div>
+                    <div class="error-message" id="passwordError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword" class="form-label">
+                        Nueva contraseña <span class="required">(obligatorio)*</span>
+                    </label>
+                    <div class="input-group">
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            class="form-input" 
+                            placeholder="Confirma contraseña"
+                            required
+                            minlength="6"
+                        >
+                        <span class="icon-eye" id="toggleConfirmPassword">👁️</span>
+                    </div>
+                    <div class="error-message" id="confirmPasswordError"></div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="registerBtn">
+                    Registrarse
+                </button>
+
+                <div class="form-links">
+                    <a href="/login" class="form-link">
+                        ¿Ya tienes cuenta? Inicia aquí
+                    </a>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Ilustración lateral -->
+        <div class="illustration">
+            <div class="illustration-content">
+                <div class="illustration-image">
+                    <!-- SVG de la ilustración -->
+                    <svg width="400" height="300" viewBox="0 0 400 300" fill="none">
+                        <!-- Persona con clipboard -->
+                        <rect x="50" y="50" width="300" height="200" fill="#E3F2FD" rx="10"/>
+                        <rect x="70" y="70" width="260" height="160" fill="white" rx="5"/>
+                        
+                        <!-- Líneas del checklist -->
+                        <rect x="90" y="90" width="120" height="2" fill="#007bff"/>
+                        <rect x="90" y="110" width="100" height="2" fill="#007bff"/>
+                        <rect x="90" y="130" width="140" height="2" fill="#007bff"/>
+                        <rect x="90" y="150" width="80" height="2" fill="#007bff"/>
+                        
+                        <!-- Checkmarks -->
+                        <circle cx="220" cy="91" r="8" fill="#007bff"/>
+                        <circle cx="200" cy="111" r="8" fill="#007bff"/>
+                        <circle cx="240" cy="131" r="8" fill="#007bff"/>
+                        <circle cx="180" cy="151" r="8" fill="#007bff"/>
+                        
+                        <!-- Persona -->
+                        <circle cx="200" cy="180" r="15" fill="#FFB74D"/>
+                        <rect x="185" y="195" width="30" height="40" fill="#FFB74D"/>
+                        <rect x="175" y="200" width="50" height="30" fill="#2196F3"/>
+                        <rect x="190" y="235" width="20" height="25" fill="#333"/>
+                        
+                        <!-- Decoraciones de fondo -->
+                        <circle cx="100" cy="100" r="20" fill="#BBDEFB" opacity="0.5"/>
+                        <circle cx="320" cy="80" r="15" fill="#BBDEFB" opacity="0.5"/>
+                        <circle cx="80" cy="200" r="25" fill="#BBDEFB" opacity="0.3"/>
+                    </svg>
+                </div>
+                
+                <!-- Estrellas de calificación -->
+                <div class="rating-stars">
+                    <div class="star"></div>
+                    <div class="star"></div>
+                    <div class="star"></div>
+                    <div class="star"></div>
+                    <div class="star"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+</html>
