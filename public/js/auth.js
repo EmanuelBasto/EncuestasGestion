@@ -78,7 +78,22 @@ function validateEmail(email) {
 }
 
 function validatePassword(password) {
-    return password.length >= 6;
+    // Mínimo 6 caracteres, máximo 12 caracteres
+    if (password.length < 6 || password.length > 12) {
+        return { valid: false, message: 'La contraseña debe tener entre 6 y 12 caracteres' };
+    }
+    
+    // Al menos una letra mayúscula
+    if (!/[A-Z]/.test(password)) {
+        return { valid: false, message: 'La primera letra debe ser mayúscula' };
+    }
+    
+    // No permitir caracteres especiales (!,?,/,$,)
+    if (/[!?\/$,]/.test(password)) {
+        return { valid: false, message: 'La contraseña no puede contener caracteres especiales (!,?,/,$,)' };
+    }
+    
+    return { valid: true };
 }
 
 function validatePasswordsMatch(password, confirmPassword) {
@@ -259,9 +274,12 @@ function setupRegisterForm() {
             if (!password) {
                 showError('passwordError', 'La contraseña es requerida');
                 hasErrors = true;
-            } else if (!validatePassword(password)) {
-                showError('passwordError', 'La contraseña debe tener al menos 6 caracteres');
-                hasErrors = true;
+            } else {
+                const passwordValidation = validatePassword(password);
+                if (!passwordValidation.valid) {
+                    showError('passwordError', passwordValidation.message);
+                    hasErrors = true;
+                }
             }
             
             if (!confirmPassword) {
@@ -354,9 +372,12 @@ function setupResetForm() {
             if (!password) {
                 showError('passwordError', 'La contraseña es requerida');
                 hasErrors = true;
-            } else if (!validatePassword(password)) {
-                showError('passwordError', 'La contraseña debe tener al menos 6 caracteres');
-                hasErrors = true;
+            } else {
+                const passwordValidation = validatePassword(password);
+                if (!passwordValidation.valid) {
+                    showError('passwordError', passwordValidation.message);
+                    hasErrors = true;
+                }
             }
             
             if (!confirmPassword) {

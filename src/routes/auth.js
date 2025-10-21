@@ -37,7 +37,10 @@ router.post(
   '/register',
   [
     body('email').isEmail().withMessage('Email inválido'),
-    body('password').isLength({ min: 6 }).withMessage('Mínimo 6 caracteres'),
+    body('password')
+      .isLength({ min: 6, max: 12 }).withMessage('La contraseña debe tener entre 6 y 12 caracteres')
+      .matches(/[A-Z]/).withMessage('La contraseña debe contener al menos una letra mayúscula')
+      .not().matches(/[!?\/$,]/).withMessage('La contraseña no puede contener caracteres especiales (!,?,/,$,)'),
     body('confirmPassword').custom((value, { req }) => {
       if (value !== req.body.password) {
         throw new Error('Las contraseñas no coinciden');
@@ -200,8 +203,10 @@ router.post('/forgot-password', async (req, res, next) => {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Expira en 15 minutos
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    // Expira en 5 minutos
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    console.log('🕐 Token creado a las:', new Date().toISOString());
+    console.log('⏰ Token expira a las:', expiresAt.toISOString());
 
     // Guardar token en base de datos
     await query(
@@ -227,14 +232,22 @@ router.post('/forgot-password', async (req, res, next) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Hola ${user.nombre},</h2>
           <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en el sistema de encuestas.</p>
-          <p><strong>Este enlace expira en 15 minutos.</strong></p>
+          <div style="background-color: #ffebee; border: 2px solid #f44336; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; color: #d32f2f; font-size: 18px; font-weight: bold;">
+              ⏰ ESTE ENLACE EXPIRA EN EXACTAMENTE 5 MINUTOS ⏰
+            </p>
+            <p style="margin: 10px 0 0 0; color: #d32f2f; font-size: 14px;">
+              Después de 5 minutos deberás solicitar un nuevo enlace
+            </p>
+          </div>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetLink}" 
-               style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Restablecer Contraseña
+               style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 16px; font-weight: bold;">
+              🔐 RESTABLECER CONTRASEÑA AHORA
             </a>
           </div>
-          <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+          <p>Si no solicitaste este cambio, puedes ignorar este correo de forma segura.</p>
+          <p><strong>⚠️ IMPORTANTE: Si el enlace expira, deberás solicitar uno nuevo.</strong></p>
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #666; font-size: 12px;">
             Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
@@ -295,10 +308,25 @@ router.post('/reset-password', async (req, res, next) => {
       });
     }
 
-    if (password.length < 6) {
+    // Validar nueva contraseña
+    if (password.length < 6 || password.length > 12) {
       return res.status(400).json({ 
         ok: false, 
-        message: 'La contraseña debe tener al menos 6 caracteres' 
+        message: 'La contraseña debe tener entre 6 y 12 caracteres' 
+      });
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      return res.status(400).json({ 
+        ok: false, 
+        message: 'La contraseña debe contener al menos una letra mayúscula' 
+      });
+    }
+    
+    if (/[!?\/$,]/.test(password)) {
+      return res.status(400).json({ 
+        ok: false, 
+        message: 'La contraseña no puede contener caracteres especiales (!,?,/,$,)' 
       });
     }
 
@@ -306,8 +334,9 @@ router.post('/reset-password', async (req, res, next) => {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     // Buscar token válido
+    console.log('🔍 Validando token a las:', new Date().toISOString());
     const { rows } = await query(
-      `SELECT tr.user_id, u.email, u.nombre
+      `SELECT tr.user_id, u.email, u.nombre, tr.expiracion
        FROM tokens_reset tr
        JOIN usuarios u ON u.id = tr.user_id
        WHERE tr.token_hash = $1
@@ -316,11 +345,17 @@ router.post('/reset-password', async (req, res, next) => {
        LIMIT 1`,
       [tokenHash]
     );
+    
+    if (rows.length > 0) {
+      console.log('✅ Token válido encontrado, expira a las:', rows[0].expiracion);
+    } else {
+      console.log('❌ Token no válido o expirado');
+    }
 
     if (rows.length === 0) {
       return res.status(400).json({ 
         ok: false, 
-        message: 'Token inválido o expirado' 
+        message: 'El enlace de recuperación ha expirado. Los enlaces solo son válidos por 5 minutos. Por favor, solicita un nuevo enlace.' 
       });
     }
 
@@ -394,7 +429,7 @@ router.get('/validate-reset-token', async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(400).json({ 
         ok: false, 
-        message: 'Token inválido o expirado' 
+        message: 'El enlace de recuperación ha expirado. Los enlaces solo son válidos por 5 minutos. Por favor, solicita un nuevo enlace.' 
       });
     }
 
