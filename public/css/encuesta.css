@@ -1,0 +1,44 @@
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background-color: #E2F5DC; /* fondo verde claro */
+}
+header {
+    background-color: #002b5b; /* azul oscuro */
+    color: white;
+    text-align: center;
+    padding: 40px 0;
+    font-size: 2.5em;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+main {
+    padding: 40px;
+}
+
+.instruccion {
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.boton-add {
+  background-color: #007bff; 
+  border: none;
+  border-radius: 15px;
+  padding: 5px; 
+  color: white;
+  font-size: 20px; 
+  cursor: pointer;
+  width: 150px;
+  height: 150px;
+  box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+.boton-add img {
+  width: 80px;
+  height: 80px;
+}
+
+.boton-encuesta:hover {
+    transform: scale(1.05);
+}

@@ -1,0 +1,271 @@
+/* Estilos generales */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #0A2B4C;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+/* Layout principal con dos columnas */
+.main-content {
+    display: flex;
+    gap: 30px;
+}
+
+.survey-column {
+    flex: 1;
+}
+
+.sidebar {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+/* Encabezado */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.formulario {
+    height: 30px;
+    width: 30px;
+    object-fit: contain;
+    order: 2;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+nav ul {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+}
+
+nav ul li {
+    margin: 0 15px;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+nav ul li:hover {
+    background-color: #f0f0f0;
+}
+
+/* Secciones de la encuesta */
+.survey-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fafafa;
+    position: relative;
+}
+
+.survey-section h2 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+/* Contenedor de iconos arriba (solo mover) */
+.icon-container-top {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 15px;
+    margin-top: -40px;
+}
+
+/* Contenedor de iconos abajo (duplicar y basura) */
+.icon-container-bottom {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.trash, .duplicate, .move {
+    width: 25px;
+    height: 25px;
+    object-fit: contain;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.trash:hover, .duplicate:hover, .move:hover {
+    transform: scale(1.1);
+}
+
+/* Opciones */
+.options {
+    margin-bottom: 15px;
+}
+
+.option {
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.option:hover {
+    background-color: #f9f9f9;
+    border-color: #bbb;
+}
+
+.add-option {
+    color: #666;
+    font-style: italic;
+    background-color: #f0f0f0;
+}
+
+.add-option:hover {
+    background-color: #e8e8e8;
+}
+
+/* Botón añadir pregunta */
+.add-question-btn {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+    display: block;
+    margin: 20px auto 0;
+    width: fit-content;
+}
+
+.add-question-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Instrucción */
+.instruction {
+    color: #7f8c8d;
+    font-style: italic;
+    margin: 10px 0;
+}
+
+/* Línea divisoria */
+hr {
+    border: none;
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 30px 0;
+}
+
+/* Nueva sección lateral derecha */
+.sidebar-section {
+    padding: 25px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    background-color: #f8f9fa;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-section h3 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    text-align: center;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+
+/* Herramientas */
+.tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.tool {
+    padding: 8px 15px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tool:hover {
+    background-color: #f0f0f0;
+    border-color: #bbb;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        margin-top: 10px;
+    }
+    
+    .main-content {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+    }
+    
+    .title-container {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    nav ul {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    nav ul li {
+        margin: 5px 0;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .tools {
+        flex-direction: column;
+    }
+    
+    .icon-container-top {
+        margin-top: -30px;
+    }
+}

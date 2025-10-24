@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuesta - Enlaces</title>
+    <link rel="stylesheet" href="../public/css/compartir_encuesta.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="title-container">
+                <img class="formulario" src="../public/images/form.svg" alt="Icono formulario">
+                <h1>Título para la encuesta</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li onclick="window.location.href='crear_encuesta.html'">Preguntas</li>
+                    <li onclick="window.location.href='respuestas_encuesta.html'">Respuestas</li>
+                    <li>Compartir</li>
+                </ul>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <div class="links-section">
+                <h2>Links</h2>
+                
+                <div class="link-item">
+                    <label class="link-label">Link público:</label>
+                    <div class="link-container">
+                        <input type="text" value="aqui va el link publico" readonly class="link-input">
+                        <button class="copy-btn">Copiar</button>
+                    </div>
+                </div>
+
+                <div class="link-item">
+                    <label class="link-label">Ver Resultados:</label>
+                    <div class="link-container">
+                        <input type="text" value="aqui creo que link de los resultados" readonly class="link-input">
+                        <button class="copy-btn">Ir</button>
+                        <button class="copy-btn">Copiar</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
