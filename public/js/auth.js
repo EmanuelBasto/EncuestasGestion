@@ -160,7 +160,7 @@ function setupLoginForm() {
                     
                     // Redirigir después de un momento
                     setTimeout(() => {
-                        window.location.href = '/dashboard'; // O la página principal
+                        window.location.href = 'encuesta.html'; // O la página principal
                     }, 1000);
                 } else {
                     showError('passwordError', data.message || 'Credenciales incorrectas');
@@ -320,7 +320,7 @@ function setupRegisterForm() {
                     
                     // Redirigir después de un momento
                     setTimeout(() => {
-                        window.location.href = '/dashboard'; // O la página principal
+                        window.location.href = '/encuesta'; // O la página principal
                     }, 1000);
                 } else {
                     if (data.errors && data.errors.length > 0) {
@@ -451,6 +451,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('token');
     if (token && window.location.pathname.includes('login.html')) {
         // Si ya está logueado, redirigir
-        window.location.href = '/dashboard';
+        window.location.href = '/encuesta';
     }
 });
