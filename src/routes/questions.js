@@ -29,7 +29,7 @@ router.post(
       // Verificar que la encuesta pertenece al usuario
       const { rows: surveyRows } = await query(
         'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
-        [encuesta_id, req.user.sub]
+        [encuesta_id, req.user.id]
       );
 
       if (!surveyRows.length) {
@@ -48,10 +48,10 @@ router.post(
 
       // Crear la pregunta
       const { rows: questionRows } = await query(
-        `INSERT INTO preguntas (encuesta_id, enunciado, tipo, obligatoria, posicion)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, enunciado, tipo, obligatoria, posicion`,
-        [encuesta_id, enunciado, tipo, obligatoria, preguntaPosicion]
+        `INSERT INTO preguntas (encuesta_id, enunciado, tipo, obligatoria, posicion, respuesta_correcta)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, enunciado, tipo, obligatoria, posicion, respuesta_correcta`,
+        [encuesta_id, enunciado, tipo, obligatoria, preguntaPosicion, tipo === 'texto_abierto' ? (opciones[0]?.respuesta_correcta || null) : null]
       );
 
       const pregunta = questionRows[0];
@@ -59,26 +59,26 @@ router.post(
       // Si es pregunta de selección, crear las opciones
       if ((tipo === 'seleccion_unica' || tipo === 'seleccion_multiple') && opciones.length > 0) {
         const opcionesValues = opciones.map((opcion, index) => 
-          `($1, $${index * 2 + 2}, $${index * 2 + 3})`
+          `($1, $${index * 3 + 2}, $${index * 3 + 3}, $${index * 3 + 4})`
         ).join(', ');
 
         const opcionesParams = [pregunta.id];
         opciones.forEach((opcion, index) => {
-          opcionesParams.push(opcion.texto, index + 1);
+          opcionesParams.push(opcion.texto, index + 1, opcion.es_correcta || false);
         });
 
         await query(
-          `INSERT INTO opciones (pregunta_id, texto, posicion) VALUES ${opcionesValues}`,
+          `INSERT INTO opciones (pregunta_id, texto, posicion, es_correcta) VALUES ${opcionesValues}`,
           opcionesParams
         );
       }
 
       // Obtener la pregunta completa con opciones
       const { rows: completeQuestionRows } = await query(
-        `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+        `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta,
                 COALESCE(
                   json_agg(
-                    json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
+                    json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion, 'es_correcta', o.es_correcta)
                     ORDER BY o.posicion
                   ) FILTER (WHERE o.id IS NOT NULL),
                   '[]'
@@ -86,7 +86,7 @@ router.post(
          FROM preguntas p
          LEFT JOIN opciones o ON p.id = o.pregunta_id
          WHERE p.id = $1
-         GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion`,
+         GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta`,
         [pregunta.id]
       );
 
@@ -119,7 +119,7 @@ router.put(
     }
 
     const { id } = req.params;
-    const { enunciado, tipo, obligatoria, posicion, opciones } = req.body;
+    const { enunciado, tipo, obligatoria, posicion, opciones, respuesta_correcta } = req.body;
 
     try {
       // Verificar que la pregunta pertenece a una encuesta del usuario
@@ -127,7 +127,7 @@ router.put(
         `SELECT p.* FROM preguntas p
          JOIN encuestas e ON p.encuesta_id = e.id
          WHERE p.id = $1 AND e.propietario_id = $2`,
-        [id, req.user.sub]
+        [id, req.user.id]
       );
 
       if (!questionRows.length) {
@@ -165,6 +165,12 @@ router.put(
         paramCount++;
       }
 
+      if (respuesta_correcta !== undefined) {
+        updates.push(`respuesta_correcta = $${paramCount}`);
+        values.push(respuesta_correcta);
+        paramCount++;
+      }
+
       if (updates.length > 0) {
         values.push(id);
         await query(
@@ -175,33 +181,38 @@ router.put(
 
       // Si se proporcionan opciones, actualizarlas
       if (opciones !== undefined) {
-        // Eliminar opciones existentes
-        await query('DELETE FROM opciones WHERE pregunta_id = $1', [id]);
+        // Solo eliminar opciones si el nuevo tipo es texto_abierto
+        if (tipo === 'texto_abierto') {
+          await query('DELETE FROM opciones WHERE pregunta_id = $1', [id]);
+        } else {
+          // Para selección única/múltiple, eliminar opciones existentes y crear nuevas
+          await query('DELETE FROM opciones WHERE pregunta_id = $1', [id]);
 
-        // Crear nuevas opciones si las hay
-        if (opciones.length > 0) {
-          const opcionesValues = opciones.map((opcion, index) => 
-            `($1, $${index * 2 + 2}, $${index * 2 + 3})`
-          ).join(', ');
+          // Crear nuevas opciones si las hay
+          if (opciones.length > 0) {
+            const opcionesValues = opciones.map((opcion, index) => 
+              `($1, $${index * 3 + 2}, $${index * 3 + 3}, $${index * 3 + 4})`
+            ).join(', ');
 
-          const opcionesParams = [id];
-          opciones.forEach((opcion, index) => {
-            opcionesParams.push(opcion.texto, index + 1);
-          });
+            const opcionesParams = [id];
+            opciones.forEach((opcion, index) => {
+              opcionesParams.push(opcion.texto, index + 1, opcion.es_correcta || false);
+            });
 
-          await query(
-            `INSERT INTO opciones (pregunta_id, texto, posicion) VALUES ${opcionesValues}`,
-            opcionesParams
-          );
+            await query(
+              `INSERT INTO opciones (pregunta_id, texto, posicion, es_correcta) VALUES ${opcionesValues}`,
+              opcionesParams
+            );
+          }
         }
       }
 
       // Obtener la pregunta actualizada
       const { rows: updatedQuestionRows } = await query(
-        `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+        `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta,
                 COALESCE(
                   json_agg(
-                    json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
+                    json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion, 'es_correcta', o.es_correcta)
                     ORDER BY o.posicion
                   ) FILTER (WHERE o.id IS NOT NULL),
                   '[]'
@@ -209,7 +220,7 @@ router.put(
          FROM preguntas p
          LEFT JOIN opciones o ON p.id = o.pregunta_id
          WHERE p.id = $1
-         GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion`,
+         GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta`,
         [id]
       );
 
@@ -231,7 +242,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       `SELECT p.* FROM preguntas p
        JOIN encuestas e ON p.encuesta_id = e.id
        WHERE p.id = $1 AND e.propietario_id = $2`,
-      [id, req.user.sub]
+      [id, req.user.id]
     );
 
     if (!questionRows.length) {
@@ -270,7 +281,7 @@ router.put(
       // Verificar que la encuesta pertenece al usuario
       const { rows: surveyRows } = await query(
         'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
-        [encuesta_id, req.user.sub]
+        [encuesta_id, req.user.id]
       );
 
       if (!surveyRows.length) {

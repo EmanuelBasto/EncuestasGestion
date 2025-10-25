@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Encuesta - Enlaces</title>
+    <title>Compartir Encuesta</title>
     <link rel="stylesheet" href="css/compartir_encuesta.css">
 </head>
 <body>
@@ -15,8 +15,8 @@
             </div>
             <nav>
                 <ul>
-                    <li onclick="window.location.href='crear_encuesta.html'">Preguntas</li>
-                    <li onclick="window.location.href='respuestas_encuesta.html'">Respuestas</li>
+                    <li onclick="goToQuestions()">Preguntas</li>
+                    <li onclick="goToResponses()">Respuestas</li>
                     <li>Compartir</li>
                 </ul>
             </nav>
@@ -24,26 +24,40 @@
 
         <main class="main-content">
             <div class="links-section">
-                <h2>Links</h2>
+                <h2>🔗 Enlaces de Compartir</h2>
                 
                 <div class="link-item">
-                    <label class="link-label">Link público:</label>
+                    <label class="link-label">📝 Link público para responder:</label>
                     <div class="link-container">
-                        <input type="text" value="aqui va el link publico" readonly class="link-input">
-                        <button class="copy-btn">Copiar</button>
+                        <input type="text" value="Cargando enlace..." readonly class="link-input">
+                        <button class="copy-btn" onclick="copyLink('public')">📋 Copiar</button>
                     </div>
+                    <p class="link-description">Comparte este enlace para que otros puedan responder tu encuesta</p>
                 </div>
 
                 <div class="link-item">
-                    <label class="link-label">Ver Resultados:</label>
+                    <label class="link-label">📊 Ver Resultados:</label>
                     <div class="link-container">
-                        <input type="text" value="aqui creo que link de los resultados" readonly class="link-input">
-                        <button class="copy-btn">Ir</button>
-                        <button class="copy-btn">Copiar</button>
+                        <input type="text" value="Cargando enlace..." readonly class="link-input">
+                        <button class="copy-btn" onclick="goToResults()">👁️ Ir</button>
+                        <button class="copy-btn" onclick="copyLink('results')">📋 Copiar</button>
                     </div>
+                    <p class="link-description">Enlace para ver el dashboard de resultados en tiempo real</p>
+                </div>
+
+                <div class="tips-section">
+                    <h3>💡 Consejos para Compartir</h3>
+                    <ul class="tips-list">
+                        <li>✅ Comparte el enlace público para que otros respondan</li>
+                        <li>📊 Usa el enlace de resultados para monitorear respuestas</li>
+                        <li>🔄 Los resultados se actualizan automáticamente</li>
+                        <li>🔒 Solo tú puedes ver los resultados detallados</li>
+                    </ul>
                 </div>
             </div>
         </main>
     </div>
+
+    <script src="js/compartir_encuesta.js"></script>
 </body>
 </html>

@@ -83,6 +83,51 @@ nav ul li:hover {
     background-color: #f0f0f0;
 }
 
+/* Header actions */
+.header-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.back-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.back-btn:hover {
+    background-color: #5a6268;
+}
+
+.save-btn {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.save-btn:hover {
+    background-color: #229954;
+}
+
+.save-btn:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
 /* Secciones de la encuesta */
 .survey-section {
     margin-bottom: 30px;
@@ -93,10 +138,31 @@ nav ul li:hover {
     position: relative;
 }
 
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
 .survey-section h2 {
     color: #2c3e50;
-    margin-bottom: 15px;
+    margin: 0;
     font-size: 1.3rem;
+    flex: 1;
+    margin-right: 15px;
+}
+
+.question-type select {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+}
+
+.question-content {
+    margin: 15px 0;
 }
 
 /* Contenedor de iconos arriba (solo mover) */
@@ -140,6 +206,9 @@ nav ul li:hover {
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .option:hover {
@@ -147,14 +216,62 @@ nav ul li:hover {
     border-color: #bbb;
 }
 
+.option input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+}
+
+.remove-option {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-option:hover {
+    background: #c0392b;
+}
+
 .add-option {
     color: #666;
     font-style: italic;
     background-color: #f0f0f0;
+    cursor: pointer;
 }
 
 .add-option:hover {
     background-color: #e8e8e8;
+}
+
+.text-preview {
+    margin: 15px 0;
+}
+
+.text-preview input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.add-question-section {
+    text-align: center;
+    margin-top: 30px;
+    padding: 20px;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    background-color: #f8f9fa;
 }
 
 /* Botón añadir pregunta */
@@ -268,4 +385,98 @@ hr {
     .icon-container-top {
         margin-top: -30px;
     }
+    
+    .header-actions {
+        margin-top: 10px;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .back-btn, .save-btn {
+        width: 100%;
+        font-size: 16px;
+    }
+}
+
+/* Botones de respuesta correcta */
+.correct-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.correct-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.correct-btn.correct {
+    background-color: #d4edda;
+}
+
+/* Campo de respuesta correcta para texto abierto */
+.text-input-container {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.correct-answer-label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.correct-answer-label span {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.correct-answer-input {
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.correct-answer-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Mejorar el layout de las opciones */
+.option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.option input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+}
+
+.option input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }

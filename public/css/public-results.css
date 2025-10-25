@@ -1,0 +1,341 @@
+/* Estilos generales */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* Encabezado */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e8ecef;
+}
+
+.survey-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.formulario {
+    height: 40px;
+    width: 40px;
+    object-fit: contain;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+/* Contenido principal */
+.main-content {
+    padding: 20px 0;
+}
+
+.results-container {
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    padding: 30px;
+    border: 1px solid #e9ecef;
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Estadísticas generales */
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.9;
+}
+
+.stat-content h3 {
+    font-size: 2rem;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.stat-content p {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Resultados de preguntas */
+.questions-results {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.question-result {
+    background-color: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.question-header h3 {
+    color: #2c3e50;
+    font-size: 1.3rem;
+    margin: 0;
+    flex: 1;
+}
+
+.question-type {
+    background-color: #3498db;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Gráficas */
+.chart-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chart-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.bar-label {
+    min-width: 150px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.bar-container {
+    flex: 1;
+    position: relative;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    height: 30px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2980b9);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.bar-text {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #2c3e50;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+/* Respuestas de texto */
+.text-responses {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.text-responses h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.text-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.text-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background-color: white;
+    border-radius: 6px;
+    border-left: 4px solid #3498db;
+}
+
+.text-content {
+    flex: 1;
+    font-style: italic;
+    color: #2c3e50;
+}
+
+.text-count {
+    background-color: #3498db;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        margin: 10px;
+        padding: 15px;
+    }
+    
+    .survey-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .results-container {
+        padding: 20px;
+    }
+    
+    .stats-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .question-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .chart-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .bar-label {
+        min-width: auto;
+    }
+    
+    .text-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .text-count {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        margin: 5px;
+        padding: 10px;
+    }
+    
+    .results-container {
+        padding: 15px;
+    }
+    
+    .question-result {
+        padding: 20px;
+    }
+    
+    .question-header h3 {
+        font-size: 1.1rem;
+    }
+}

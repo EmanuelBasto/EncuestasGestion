@@ -87,11 +87,15 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Errores de validación:', errors.array());
       return res.status(400).json({ ok: false, errors: errors.array() });
     }
 
     const { token } = req.params;
     const { respuestas } = req.body;
+
+    console.log('🔍 Recibiendo respuestas para token:', token.substring(0, 10) + '...');
+    console.log('📊 Respuestas recibidas:', respuestas);
 
     try {
       // Verificar que el token existe y la encuesta está activa
@@ -108,6 +112,9 @@ router.post(
       }
 
       const link = linkRows[0];
+      
+      console.log('🔗 Enlace encontrado:', link);
+      console.log('📊 ID de encuesta:', link.id);
 
       // Verificar si la encuesta está activa
       if (!link.activa) {
@@ -125,7 +132,7 @@ router.post(
       // Verificar si ya existe un envío para esta sesión
       const { rows: existingRows } = await query(
         'SELECT id FROM envios WHERE encuesta_id = $1 AND huella_sesion = $2',
-        [link.id, sessionFingerprint]
+        [parseInt(link.id), sessionFingerprint]
       );
 
       if (existingRows.length > 0) {
@@ -135,15 +142,22 @@ router.post(
       // Validar respuestas
       const { rows: questionsRows } = await query(
         'SELECT id, tipo, obligatoria FROM preguntas WHERE encuesta_id = $1',
-        [link.id]
+        [parseInt(link.id)]
       );
 
-      const questionsMap = new Map(questionsRows.map(q => [q.id, q]));
+      console.log('📋 Preguntas encontradas en BD:', questionsRows);
+      console.log('🔍 IDs de preguntas en BD:', questionsRows.map(q => q.id));
+
+      const questionsMap = new Map(questionsRows.map(q => [parseInt(q.id), q]));
       const answeredQuestions = new Set();
 
       for (const respuesta of respuestas) {
+        console.log('🔍 Buscando pregunta ID:', respuesta.pregunta_id, 'Tipo:', typeof respuesta.pregunta_id);
         const pregunta = questionsMap.get(respuesta.pregunta_id);
+        console.log('📊 Pregunta encontrada:', pregunta);
+        
         if (!pregunta) {
+          console.log('❌ Pregunta no encontrada en mapa:', Array.from(questionsMap.keys()));
           return res.status(400).json({ ok: false, message: `Pregunta ${respuesta.pregunta_id} no existe` });
         }
 

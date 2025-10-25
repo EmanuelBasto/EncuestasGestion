@@ -77,6 +77,19 @@ nav ul li:hover {
     color: #3498db;
 }
 
+nav ul li:nth-child(3) {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Sección de Links */
+.links-section {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 30px;
+    border: 1px solid #e9ecef;
+}
+
 /* Sección de Links */
 .links-section {
     background-color: #f8f9fa;
@@ -148,6 +161,116 @@ nav ul li:hover {
 
 .copy-btn:active {
     transform: translateY(0);
+}
+
+.link-description {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* Secciones adicionales */
+.share-section, .qr-section, .tips-section {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.share-section h3, .qr-section h3, .tips-section h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.social-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.social-btn {
+    padding: 12px 15px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.social-btn.twitter {
+    background-color: #1da1f2;
+    color: white;
+}
+
+.social-btn.facebook {
+    background-color: #4267b2;
+    color: white;
+}
+
+.social-btn.whatsapp {
+    background-color: #25d366;
+    color: white;
+}
+
+.social-btn.linkedin {
+    background-color: #0077b5;
+    color: white;
+}
+
+.social-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.qr-btn {
+    background-color: #9b59b6;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.qr-btn:hover {
+    background-color: #8e44ad;
+    transform: translateY(-2px);
+}
+
+.tips-list {
+    list-style: none;
+    padding: 0;
+}
+
+.tips-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.tips-list li:last-child {
+    border-bottom: none;
+}
+
+/* Modal QR */
+.qr-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
 }
 
 /* Responsive */

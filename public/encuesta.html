@@ -1,25 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Mis Encuestas</title>
     <link rel="stylesheet" href="css/encuesta.css">
-    
 </head>
 <body>
-    <header>Comienza tu encuesta</header>
-    <main>
-    <p class="instruccion">Selecciona el botón azul para crear una encuesta:</p>
-
-
-    <button class="boton-add">
-        <img src="images/add.svg" onclick="window.location.href='crear_encuesta.html'" alt="no se encuentra">
-    </button>
+    <header>
+        <h1>Mis Encuestas</h1>
+        <button id="logoutBtn" class="logout-btn">Cerrar Sesión</button>
+    </header>
     
-    <p>Encuesta en blanco</p>
+    <main>
+        <div class="create-section">
+            <p class="instruccion">Selecciona el botón azul para crear una encuesta:</p>
+            <button class="boton-add">
+                <img src="images/add.svg" alt="Crear encuesta">
+            </button>
+            <p>Encuesta en blanco</p>
+        </div>
 
-    <h3>Mis encuestas:</h3>
-  </main>
+        <div class="surveys-section">
+            <h3>Mis encuestas:</h3>
+            <div class="surveys-container">
+                <!-- Las encuestas se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </main>
+
+    <script src="js/encuesta.js"></script>
 </body>
 </html>

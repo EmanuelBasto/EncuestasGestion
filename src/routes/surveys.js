@@ -26,7 +26,7 @@ router.post(
     }
 
     const { titulo } = req.body;
-    const propietario_id = req.user.sub;
+    const propietario_id = req.user.id;
 
     try {
       // Crear la encuesta
@@ -79,7 +79,7 @@ router.get('/', requireAuth, async (req, res) => {
        WHERE e.propietario_id = $1
        GROUP BY e.id, e.titulo, e.activa, e.creada_en
        ORDER BY e.creada_en DESC`,
-      [req.user.sub]
+      [req.user.id]
     );
 
     res.json({ ok: true, encuestas: rows });
@@ -97,7 +97,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     // Verificar que la encuesta pertenece al usuario
     const { rows: surveyRows } = await query(
       'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
-      [id, req.user.sub]
+      [id, req.user.id]
     );
 
     if (!surveyRows.length) {
@@ -106,12 +106,24 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     const encuesta = surveyRows[0];
 
+    // Obtener enlaces de la encuesta
+    const { rows: linksRows } = await query(
+      `SELECT tipo, token FROM enlaces_encuesta WHERE encuesta_id = $1`,
+      [id]
+    );
+
+    // Organizar enlaces por tipo
+    const enlaces = {};
+    linksRows.forEach(link => {
+      enlaces[link.tipo] = link.token;
+    });
+
     // Obtener preguntas con sus opciones
     const { rows: questionsRows } = await query(
-      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta,
               COALESCE(
                 json_agg(
-                  json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
+                  json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion, 'es_correcta', o.es_correcta)
                   ORDER BY o.posicion
                 ) FILTER (WHERE o.id IS NOT NULL),
                 '[]'
@@ -119,7 +131,7 @@ router.get('/:id', requireAuth, async (req, res) => {
        FROM preguntas p
        LEFT JOIN opciones o ON p.id = o.pregunta_id
        WHERE p.encuesta_id = $1
-       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion
+       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta
        ORDER BY p.posicion`,
       [id]
     );
@@ -128,6 +140,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       ok: true,
       encuesta: {
         ...encuesta,
+        enlaces: enlaces,
         preguntas: questionsRows
       }
     });
@@ -159,7 +172,7 @@ router.put(
       // Verificar que la encuesta pertenece al usuario
       const { rows: surveyRows } = await query(
         'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
-        [id, req.user.sub]
+        [id, req.user.id]
       );
 
       if (!surveyRows.length) {
@@ -187,7 +200,7 @@ router.put(
         return res.status(400).json({ ok: false, message: 'No hay campos para actualizar' });
       }
 
-      values.push(id, req.user.sub);
+      values.push(id, req.user.id);
 
       const { rows } = await query(
         `UPDATE encuestas 
@@ -212,7 +225,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { rowCount } = await query(
       'DELETE FROM encuestas WHERE id = $1 AND propietario_id = $2',
-      [id, req.user.sub]
+      [id, req.user.id]
     );
 
     if (rowCount === 0) {
@@ -234,7 +247,7 @@ router.get('/:id/stats', requireAuth, async (req, res) => {
     // Verificar que la encuesta pertenece al usuario
     const { rows: surveyRows } = await query(
       'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
-      [id, req.user.sub]
+      [id, req.user.id]
     );
 
     if (!surveyRows.length) {
