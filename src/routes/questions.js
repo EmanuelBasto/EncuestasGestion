@@ -188,11 +188,27 @@ router.put(
         );
       }
 
+      // Manejar cambio de tipo de pregunta
+      if (tipo !== undefined && tipo !== preguntaActual.tipo) {
+        console.log(`Cambiando tipo de pregunta de ${preguntaActual.tipo} a ${tipo}`);
+        
+        if (tipo === 'seleccion_unica') {
+          // Al cambiar a selección única, deseleccionar todas las respuestas correctas
+          console.log('Deseleccionando todas las respuestas para selección única');
+          await query(
+            'UPDATE opciones SET es_correcta = false WHERE pregunta_id = $1',
+            [id]
+          );
+        }
+        // Si cambia a selección múltiple, mantener las respuestas correctas actuales
+        // No necesitamos hacer nada especial aquí
+      }
+
       // Si se proporcionan opciones, actualizarlas
       if (opciones !== undefined) {
         console.log('Actualizando opciones:', opciones);
-        // Obtener el tipo actual de la pregunta si no se proporciona en la actualización
-        const preguntaTipo = tipo || preguntaActual.tipo;
+        // Obtener el tipo actual de la pregunta (usar el nuevo tipo si se cambió)
+        const preguntaTipo = tipo !== undefined ? tipo : preguntaActual.tipo;
         console.log('Tipo de pregunta:', preguntaTipo);
         
         // Solo eliminar opciones si el tipo es texto_abierto
@@ -201,6 +217,18 @@ router.put(
           await query('DELETE FROM opciones WHERE pregunta_id = $1', [id]);
         } else {
           console.log('Procesando opciones para selección');
+          
+          // Validar máximo 4 respuestas correctas para selección múltiple
+          if (preguntaTipo === 'seleccion_multiple') {
+            const correctAnswersCount = opciones.filter(opcion => opcion.es_correcta).length;
+            if (correctAnswersCount > 4) {
+              console.log('Error: Más de 4 respuestas correctas en selección múltiple');
+              return res.status(400).json({ 
+                ok: false, 
+                message: 'Solo se permiten máximo 4 respuestas correctas en selección múltiple' 
+              });
+            }
+          }
           
           // Obtener opciones existentes
           const { rows: existingOptions } = await query(

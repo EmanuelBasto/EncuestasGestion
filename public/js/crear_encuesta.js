@@ -320,6 +320,11 @@ async function updateQuestionType(questionId, newType) {
     const question = questions.find(q => q.id == questionId);
     if (!question) return;
 
+    // Mostrar notificación si se cambia a selección única
+    if (newType === 'seleccion_unica' && question.tipo !== 'seleccion_unica') {
+        showSuccess('Selección única solo admite una respuesta correcta');
+    }
+
     // Solo actualizar el tipo, sin tocar las opciones
     await updateQuestion(questionId, { tipo: newType });
     renderQuestions();
@@ -486,6 +491,15 @@ async function toggleCorrectAnswer(optionId) {
             opt.es_correcta = opt.id === optionId ? !opt.es_correcta : false;
         });
     } else {
+        // Si es selección múltiple, validar máximo 4 respuestas correctas
+        const correctAnswers = question.opciones.filter(opt => opt.es_correcta);
+        
+        // Si estamos intentando marcar una nueva respuesta correcta
+        if (!option.es_correcta && correctAnswers.length >= 4) {
+            showError('Solo se permiten máximo 4 respuestas correctas en selección múltiple');
+            return;
+        }
+        
         // Si es selección múltiple, solo alternar esta opción
         option.es_correcta = !option.es_correcta;
     }
