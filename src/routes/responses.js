@@ -126,18 +126,8 @@ router.post(
         return res.status(410).json({ ok: false, message: 'Este enlace ha expirado' });
       }
 
-      // Generar huella de sesión
-      const sessionFingerprint = generateSessionFingerprint(req);
-
-      // Verificar si ya existe un envío para esta sesión
-      const { rows: existingRows } = await query(
-        'SELECT id FROM envios WHERE encuesta_id = $1 AND huella_sesion = $2',
-        [parseInt(link.id), sessionFingerprint]
-      );
-
-      if (existingRows.length > 0) {
-        return res.status(409).json({ ok: false, message: 'Ya has respondido esta encuesta' });
-      }
+      // Generar huella de sesión única para cada envío
+      const sessionFingerprint = generateSessionFingerprint(req) + '-' + Date.now();
 
       // Validar respuestas
       const { rows: questionsRows } = await query(
@@ -188,11 +178,25 @@ router.post(
         }
       }
 
-      // Verificar preguntas obligatorias
+      // Verificar que se respondieron TODAS las preguntas
+      console.log('🔍 Preguntas en BD:', questionsRows.map(q => q.id));
+      console.log('📊 Preguntas respondidas:', Array.from(answeredQuestions));
+      
+      const unansweredQuestions = [];
       for (const pregunta of questionsRows) {
-        if (pregunta.obligatoria && !answeredQuestions.has(pregunta.id)) {
-          return res.status(400).json({ ok: false, message: `Pregunta ${pregunta.id} es obligatoria` });
+        const preguntaIdNum = parseInt(pregunta.id);
+        console.log(`🔍 Verificando pregunta ${pregunta.id} (${preguntaIdNum}):`, answeredQuestions.has(preguntaIdNum));
+        if (!answeredQuestions.has(preguntaIdNum)) {
+          unansweredQuestions.push(pregunta.id);
         }
+      }
+
+      if (unansweredQuestions.length > 0) {
+        console.log('❌ Preguntas sin responder:', unansweredQuestions);
+        return res.status(400).json({ 
+          ok: false, 
+          message: `Debes responder todas las preguntas. Preguntas sin responder: ${unansweredQuestions.join(', ')}` 
+        });
       }
 
       // Crear el envío

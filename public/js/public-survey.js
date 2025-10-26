@@ -234,50 +234,40 @@ function updateResponse(questionId, value, isMultiple = false) {
 function validateForm() {
     if (!surveyData) return;
 
-    const requiredQuestions = surveyData.preguntas.filter(q => q.obligatoria);
-    const unansweredRequired = [];
+    const unansweredQuestions = [];
     const invalidTextAnswers = [];
 
-    // Validar preguntas obligatorias
-    requiredQuestions.forEach(q => {
+    // Validar TODAS las preguntas (no solo las obligatorias)
+    surveyData.preguntas.forEach(q => {
         const response = responses[q.id];
-        console.log('🔍 Validando pregunta obligatoria:', q.id, 'Respuesta:', response);
+        console.log('🔍 Validando pregunta:', q.id, 'Respuesta:', response);
         
         if (q.tipo === 'texto_abierto') {
             if (!response || response.toString().trim() === '') {
-                unansweredRequired.push(q.enunciado);
+                unansweredQuestions.push(q.enunciado);
             } else if (response.length > 800) {
                 invalidTextAnswers.push(q.enunciado);
             }
         } else if (q.tipo === 'seleccion_multiple') {
             if (!response || response.length === 0) {
-                unansweredRequired.push(q.enunciado);
+                unansweredQuestions.push(q.enunciado);
             }
         } else if (q.tipo === 'seleccion_unica') {
             if (!response || response.toString().trim() === '') {
-                unansweredRequired.push(q.enunciado);
+                unansweredQuestions.push(q.enunciado);
             }
         }
     });
 
-    // Validar también las respuestas de texto abierto no obligatorias
-    const textQuestions = surveyData.preguntas.filter(q => q.tipo === 'texto_abierto');
-    textQuestions.forEach(q => {
-        const response = responses[q.id];
-        if (response && response.toString().trim() !== '' && response.length > 800) {
-            invalidTextAnswers.push(q.enunciado);
-        }
-    });
-
-    const isValid = unansweredRequired.length === 0 && invalidTextAnswers.length === 0;
+    const isValid = unansweredQuestions.length === 0 && invalidTextAnswers.length === 0;
     document.getElementById('submitBtn').disabled = !isValid;
 
     // Mostrar mensajes de error si existen
-    if (unansweredRequired.length > 0 || invalidTextAnswers.length > 0) {
+    if (unansweredQuestions.length > 0 || invalidTextAnswers.length > 0) {
         let errorMessage = '';
         
-        if (unansweredRequired.length > 0) {
-            errorMessage += 'Preguntas obligatorias sin responder:\n• ' + unansweredRequired.join('\n• ');
+        if (unansweredQuestions.length > 0) {
+            errorMessage += 'Debes responder todas las preguntas:\n• ' + unansweredQuestions.join('\n• ');
         }
         
         if (invalidTextAnswers.length > 0) {
@@ -388,6 +378,49 @@ async function submitResponses(event) {
     submitBtn.textContent = '📤 Enviando...';
 
     try {
+        // Verificar que todas las preguntas tengan respuestas
+        const unansweredQuestions = [];
+        const invalidTextAnswers = [];
+        
+        surveyData.preguntas.forEach(q => {
+            const response = responses[q.id];
+            
+            if (q.tipo === 'texto_abierto') {
+                if (!response || response.toString().trim() === '') {
+                    unansweredQuestions.push(q.enunciado);
+                } else if (response.length > 800) {
+                    invalidTextAnswers.push(q.enunciado);
+                }
+            } else if (q.tipo === 'seleccion_multiple') {
+                if (!response || response.length === 0) {
+                    unansweredQuestions.push(q.enunciado);
+                }
+            } else if (q.tipo === 'seleccion_unica') {
+                if (!response || response.toString().trim() === '') {
+                    unansweredQuestions.push(q.enunciado);
+                }
+            }
+        });
+
+        // Mostrar errores si existen
+        if (unansweredQuestions.length > 0 || invalidTextAnswers.length > 0) {
+            let errorMessage = '';
+            
+            if (unansweredQuestions.length > 0) {
+                errorMessage += 'Debes responder todas las preguntas:\n• ' + unansweredQuestions.join('\n• ');
+            }
+            
+            if (invalidTextAnswers.length > 0) {
+                if (errorMessage) errorMessage += '\n\n';
+                errorMessage += 'Respuestas muy largas (máximo 800 caracteres):\n• ' + invalidTextAnswers.join('\n• ');
+            }
+            
+            showError(errorMessage);
+            submitBtn.disabled = false;
+            submitBtn.textContent = '📤 Enviar Respuestas';
+            return; // No enviar si hay errores
+        }
+
         // Preparar datos para envío
         const responseData = Object.keys(responses).map(questionId => {
             const response = responses[questionId];
@@ -431,6 +464,10 @@ async function submitResponses(event) {
         if (data.ok) {
             showSuccess('¡Respuestas enviadas correctamente!');
             
+            // Guardar en localStorage que ya se envió esta encuesta
+            const token = getTokenFromURL();
+            localStorage.setItem(`survey_completed_${token}`, 'true');
+            
             // Mostrar mensaje de agradecimiento
             setTimeout(() => {
                 document.querySelector('.container').innerHTML = `
@@ -465,6 +502,22 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             window.location.href = '/';
         }, 3000);
+        return;
+    }
+
+    // Verificar si ya se completó esta encuesta
+    const isCompleted = localStorage.getItem(`survey_completed_${token}`);
+    if (isCompleted === 'true') {
+        // Mostrar mensaje de agradecimiento directamente
+        document.querySelector('.container').innerHTML = `
+            <div class="thank-you">
+                <div class="thank-you-content">
+                    <h1>¡Gracias por tu participación!</h1>
+                    <p>Tu respuesta ha sido registrada exitosamente.</p>
+                    <div class="success-icon">✅</div>
+                </div>
+            </div>
+        `;
         return;
     }
 
