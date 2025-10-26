@@ -10,6 +10,8 @@ body {
     background-color: #0A2B4C;
     color: #333;
     line-height: 1.6;
+    margin: 0;
+    padding: 20px;
 }
 
 .container {
@@ -19,7 +21,7 @@ body {
     background-color: white;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    margin-top: 20px;
+    margin: 20px auto;
 }
 
 /* Layout principal con dos columnas */
@@ -169,28 +171,72 @@ nav ul li:hover {
 .icon-container-top {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 15px;
-    margin-top: -40px;
+    margin-bottom: 10px;
+    margin-top: -35px;
+    padding: 4px;
 }
 
 /* Contenedor de iconos abajo (duplicar y basura) */
 .icon-container-bottom {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin: 15px 0;
+    gap: 8px;
+    margin: 10px 0;
+    padding: 4px;
 }
 
-.trash, .duplicate, .move {
-    width: 25px;
-    height: 25px;
+.trash, .duplicate {
+    width: 20px;
+    height: 20px;
     object-fit: contain;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s, opacity 0.2s;
+    opacity: 0.7;
 }
 
-.trash:hover, .duplicate:hover, .move:hover {
-    transform: scale(1.1);
+.trash:hover, .duplicate:hover {
+    transform: scale(1.15);
+    opacity: 1;
+}
+
+.move-handle {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.2s, opacity 0.2s;
+    opacity: 0.6;
+}
+
+.move-handle:hover {
+    transform: scale(1.2);
+    opacity: 1;
+}
+
+.move-handle:active {
+    cursor: grabbing;
+    transform: scale(0.9);
+}
+
+/* Estilos para drag and drop */
+.survey-section {
+    transition: opacity 0.2s, transform 0.2s;
+    cursor: move;
+}
+
+.survey-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.survey-section.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.survey-section.dragover {
+    border-top: 3px solid #007bff;
 }
 
 /* Opciones */
@@ -272,6 +318,7 @@ nav ul li:hover {
     border: 2px dashed #ddd;
     border-radius: 8px;
     background-color: #f8f9fa;
+    pointer-events: auto;
 }
 
 /* Botón añadir pregunta */

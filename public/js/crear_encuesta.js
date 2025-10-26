@@ -5,6 +5,8 @@ const API_BASE_URL = window.location.origin + '/api';
 let currentSurvey = null;
 let questions = [];
 let questionCounter = 0;
+let hasUnsavedChanges = false;
+let originalQuestionsData = null;
 
 // Utilidades
 function showError(message) {
@@ -50,6 +52,50 @@ function showSuccess(message) {
     
     setTimeout(() => {
         successDiv.remove();
+    }, 3000);
+}
+
+function showInfo(message) {
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'info-message';
+    infoDiv.textContent = message;
+    infoDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #3498db;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        font-size: 14px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    // Añadir animación si no existe
+    if (!document.getElementById('info-animation')) {
+        const style = document.createElement('style');
+        style.id = 'info-animation';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(infoDiv);
+    
+    setTimeout(() => {
+        infoDiv.remove();
     }, 3000);
 }
 
@@ -140,8 +186,15 @@ function renderQuestions() {
     const questionsContainer = document.querySelector('.survey-column');
     if (!questionsContainer) return;
 
-    questionsContainer.innerHTML = questions.map((question, index) => `
-        <div class="survey-section" data-question-id="${question.id}">
+    // Limpiar el contenedor primero
+    questionsContainer.innerHTML = '';
+    
+    // Renderizar todas las preguntas
+    questions.forEach((question, index) => {
+        const questionElement = document.createElement('div');
+        questionElement.className = 'survey-section';
+        questionElement.setAttribute('data-question-id', question.id);
+        questionElement.innerHTML = `
             <div class="question-header">
                 <h2 contenteditable="true" data-field="enunciado">${question.enunciado}</h2>
                 <div class="question-type">
@@ -154,7 +207,7 @@ function renderQuestions() {
             </div>
             
             <div class="icon-container-top">
-                <img class="move" src="images/move.png" alt="icono mover" title="Mover pregunta">
+                <img class="move-handle" src="images/move.png" alt="icono mover" title="Arrastra para mover pregunta" draggable="false">
             </div>
             
             <div class="question-content">
@@ -165,15 +218,21 @@ function renderQuestions() {
                 <img class="duplicate" src="images/duplicar.png" alt="duplicar" title="Duplicar pregunta" onclick="duplicateQuestion(${question.id})">
                 <img class="trash" src="images/trash.png" alt="eliminar" title="Eliminar pregunta" onclick="deleteQuestion(${question.id})">
             </div>
-        </div>
-    `).join('') + `
-        <div class="add-question-section">
-            <button class="add-question-btn" onclick="addNewQuestion()">Añadir pregunta</button>
-        </div>
-    `;
+        `;
+        questionsContainer.appendChild(questionElement);
+    });
+    
+    // Crear el botón "Añadir pregunta" como último elemento
+    const addQuestionSection = document.createElement('div');
+    addQuestionSection.className = 'add-question-section';
+    addQuestionSection.innerHTML = `<button class="add-question-btn" onclick="addNewQuestion()">Añadir pregunta</button>`;
+    questionsContainer.appendChild(addQuestionSection);
 
     // Agregar event listeners para edición
     addQuestionEventListeners();
+    
+    // Agregar funcionalidad de drag and drop
+    initializeDragAndDrop();
 }
 
 // Renderizar contenido de pregunta según tipo
@@ -278,8 +337,27 @@ async function addNewQuestion() {
     }
 }
 
+// Función para marcar cambios pendientes
+function markAsChanged() {
+    hasUnsavedChanges = true;
+    showInfo('Has realizado cambios. No olvides guardar la encuesta.');
+}
+
+// Función para verificar si hay cambios pendientes
+function hasChanges() {
+    return hasUnsavedChanges;
+}
+
+// Función para marcar como guardado
+function markAsSaved() {
+    hasUnsavedChanges = false;
+}
+
 // Actualizar pregunta
 async function updateQuestion(questionId, updates) {
+    // Marcar como cambiado
+    markAsChanged();
+    
     try {
         console.log('Actualizando pregunta ID:', questionId, 'con datos:', updates);
         const token = localStorage.getItem('token');
@@ -295,8 +373,21 @@ async function updateQuestion(questionId, updates) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Error del servidor:', response.status, errorText);
-            showError(`Error al actualizar la pregunta: ${response.status}`);
-            return;
+            
+            // Si es un error 400, intentar parsear el JSON para obtener el mensaje
+            if (response.status === 400) {
+                console.log('Error 400 detectado, errorText:', errorText);
+                const errorData = JSON.parse(errorText);
+                console.log('ErrorData parseado:', errorData);
+                // Lanzar el error directamente con el mensaje del backend
+                const error = new Error(errorData.message || 'Error al actualizar la pregunta');
+                error.status = response.status;
+                throw error;
+            } else {
+                const error = new Error(`Error al actualizar la pregunta: ${response.status}`);
+                error.status = response.status;
+                throw error;
+            }
         }
 
         const data = await response.json();
@@ -311,7 +402,8 @@ async function updateQuestion(questionId, updates) {
         }
     } catch (error) {
         console.error('Error actualizando pregunta:', error);
-        showError('Error de conexión');
+        // Re-lanzar la excepción para que pueda ser manejada por funciones que llaman a updateQuestion
+        throw error;
     }
 }
 
@@ -585,8 +677,38 @@ async function removeOption(optionId) {
     if (!question) return;
 
     const updatedOptions = question.opciones.filter(option => option.id != optionId);
-    await updateQuestion(question.id, { opciones: updatedOptions });
-    renderQuestions();
+    
+    try {
+        await updateQuestion(question.id, { opciones: updatedOptions });
+        renderQuestions();
+    } catch (error) {
+        console.log('Error capturado en removeOption:', error);
+        console.log('Mensaje de error:', error.message);
+        
+        // Si el error es por respuestas asociadas, mostrar confirmación
+        if (error.message && error.message.includes('respuestas asociadas')) {
+            console.log('Mostrando diálogo de confirmación');
+            const confirmDelete = confirm(
+                'Esta opción tiene respuestas asociadas. ¿Estás seguro de que quieres eliminarla?\n\n' +
+                '⚠️ ADVERTENCIA: Esto eliminará también todas las respuestas asociadas a esta opción.\n' +
+                'Esta acción no se puede deshacer.'
+            );
+            
+            if (confirmDelete) {
+                try {
+                    await updateQuestion(question.id, { opciones: updatedOptions, forceDelete: true });
+                    renderQuestions();
+                    showSuccess('Opción eliminada correctamente (incluyendo respuestas asociadas)');
+                } catch (forceError) {
+                    console.error('Error en eliminación forzada:', forceError);
+                    showError('Error al eliminar la opción');
+                }
+            }
+        } else {
+            console.log('Error no relacionado con respuestas asociadas');
+            showError('Error al eliminar la opción');
+        }
+    }
 }
 
 // Guardar encuesta
@@ -664,6 +786,7 @@ async function saveSurvey() {
         }
 
         showSuccess('¡Encuesta guardada exitosamente!');
+        markAsSaved(); // Marcar como guardado
         
     } catch (error) {
         console.error('Error guardando encuesta:', error);
@@ -680,12 +803,22 @@ function goToSurveys() {
 }
 
 function goToResponses() {
+    if (hasUnsavedChanges) {
+        showError('Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña.');
+        return;
+    }
+    
     if (currentSurvey) {
         window.location.href = `respuestas_encuesta.html?id=${currentSurvey.id}`;
     }
 }
 
 function goToShare() {
+    if (hasUnsavedChanges) {
+        showError('Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña.');
+        return;
+    }
+    
     if (currentSurvey) {
         window.location.href = `compartir_encuesta.html?id=${currentSurvey.id}`;
     }
@@ -727,3 +860,131 @@ document.addEventListener('DOMContentLoaded', () => {
         backBtn.addEventListener('click', goToSurveys);
     }
 });
+
+// Inicializar drag and drop para preguntas
+function initializeDragAndDrop() {
+    const questionSections = document.querySelectorAll('.survey-section');
+    
+    questionSections.forEach(section => {
+        // Verificar que no es el add-question-section
+        if (section.classList.contains('add-question-section')) {
+            section.draggable = false;
+            return;
+        }
+        
+        section.draggable = true;
+        
+        section.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', section.innerHTML);
+            e.dataTransfer.setData('text/plain', section.dataset.questionId);
+            section.classList.add('dragging');
+        });
+        
+        section.addEventListener('dragend', (e) => {
+            section.classList.remove('dragging');
+        });
+        
+        section.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const dragging = document.querySelector('.dragging');
+            const afterElement = getDragAfterElement(section, e.clientY);
+            
+            // Obtener el add-question-section para verificar que no estamos insertando después de él
+            const addQuestionSection = section.parentNode.querySelector('.add-question-section');
+            
+            if (afterElement == null) {
+                // Si afterElement es null y nextSibling es add-question-section, no hacer nada
+                if (section.nextSibling && section.nextSibling.classList && section.nextSibling.classList.contains('add-question-section')) {
+                    // Insertar antes del add-question-section
+                    section.parentNode.insertBefore(dragging, addQuestionSection);
+                } else {
+                    section.parentNode.appendChild(dragging);
+                }
+            } else {
+                // Si afterElement es add-question-section o está después de él, insertar antes
+                if (afterElement.classList && afterElement.classList.contains('add-question-section')) {
+                    section.parentNode.insertBefore(dragging, addQuestionSection);
+                } else {
+                    section.parentNode.insertBefore(dragging, afterElement);
+                }
+            }
+        });
+        
+        section.addEventListener('drop', (e) => {
+            e.preventDefault();
+            
+            const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
+            const targetId = parseInt(section.dataset.questionId);
+            
+            if (draggedId !== targetId) {
+                reorderQuestions(draggedId, targetId);
+            }
+        });
+    });
+}
+
+// Obtener el elemento después del cual insertar
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.parentNode.querySelectorAll('.survey-section:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// Reordenar preguntas en el array y actualizar el backend
+async function reorderQuestions(draggedId, targetId) {
+    const draggedIndex = questions.findIndex(q => q.id === draggedId);
+    const targetIndex = questions.findIndex(q => q.id === targetId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+    
+    // Mover el elemento en el array
+    const [movedQuestion] = questions.splice(draggedIndex, 1);
+    questions.splice(targetIndex, 0, movedQuestion);
+    
+    // Actualizar posiciones en el array
+    questions.forEach((question, index) => {
+        question.posicion = index + 1;
+    });
+    
+    // Marcar como cambiado
+    markAsChanged();
+    
+    // Actualizar en el backend
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/questions/reorder`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                questions: questions.map(q => ({ id: q.id, posicion: q.posicion }))
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.ok) {
+            console.error('Error reordenando preguntas:', data.message);
+            renderQuestions(); // Renderizar de nuevo para revertir cambios visuales
+        } else {
+            showSuccess('Preguntas reordenadas correctamente');
+        }
+    } catch (error) {
+        console.error('Error reordenando preguntas:', error);
+        renderQuestions(); // Renderizar de nuevo para revertir cambios visuales
+    }
+}

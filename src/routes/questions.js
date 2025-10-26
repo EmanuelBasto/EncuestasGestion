@@ -263,10 +263,39 @@ router.put(
             const idsToDelete = existingOptions.slice(opciones.length).map(opt => opt.id);
             if (idsToDelete.length > 0) {
               console.log('Eliminando opciones sobrantes:', idsToDelete);
-              await query(
-                `DELETE FROM opciones WHERE id IN (${idsToDelete.map((_, i) => `$${i + 1}`).join(', ')})`,
-                idsToDelete
+              
+              // Verificar si alguna de estas opciones tiene respuestas asociadas
+              const { rows: responsesCheck } = await query(
+                `SELECT COUNT(*) as count FROM respuestas_opcion 
+                 WHERE opcion_id = ANY($1)`,
+                [idsToDelete]
               );
+              
+              if (responsesCheck[0].count > 0) {
+                // Si se especifica forceDelete, eliminar también las respuestas asociadas
+                if (req.body.forceDelete === true) {
+                  console.log('Eliminación forzada: eliminando respuestas asociadas');
+                  
+                  // Eliminar respuestas asociadas primero
+                  await query(
+                    `DELETE FROM respuestas_opcion WHERE opcion_id = ANY($1)`,
+                    [idsToDelete]
+                  );
+                  
+                  console.log('Respuestas asociadas eliminadas, procediendo con eliminación de opciones');
+                } else {
+                  console.log('No se pueden eliminar opciones que tienen respuestas asociadas');
+                  return res.status(400).json({ 
+                    ok: false, 
+                    message: 'No se pueden eliminar opciones que ya tienen respuestas asociadas. Usa forceDelete: true para eliminar también las respuestas asociadas.' 
+                  });
+                }
+              }
+              
+              // Eliminar las opciones una por una para evitar problemas de SQL dinámico
+              for (const idToDelete of idsToDelete) {
+                await query('DELETE FROM opciones WHERE id = $1', [idToDelete]);
+              }
             }
           }
         }
