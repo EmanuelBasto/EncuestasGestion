@@ -168,6 +168,15 @@ router.post(
           if (!respuesta.texto || respuesta.texto.trim() === '') {
             return res.status(400).json({ ok: false, message: `Respuesta requerida para pregunta ${respuesta.pregunta_id}` });
           }
+          
+          // Validar longitud de texto (máximo 800 caracteres)
+          const textLength = respuesta.texto.length;
+          if (textLength > 800) {
+            return res.status(400).json({ 
+              ok: false, 
+              message: `La respuesta debe tener máximo 800 caracteres (actual: ${textLength})` 
+            });
+          }
         } else if (pregunta.tipo === 'seleccion_unica') {
           if (!respuesta.opciones || respuesta.opciones.length !== 1) {
             return res.status(400).json({ ok: false, message: `Debe seleccionar exactamente una opción para pregunta ${respuesta.pregunta_id}` });

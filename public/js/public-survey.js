@@ -167,12 +167,37 @@ function renderTextInput(question) {
     return `
         <div class="text-input-container">
             <textarea name="question_${question.id}" 
-                      placeholder="Escribe tu respuesta aquí..."
+                      placeholder="Escribe tu respuesta aquí (máximo 800 caracteres)..."
                       onchange="updateResponse(${question.id}, this.value)"
-                      rows="3"></textarea>
-            <p class="text-hint">La primera letra debe ser mayúscula</p>
+                      oninput="validateTextLength(this, ${question.id})"
+                      rows="4"
+                      maxlength="800"></textarea>
+            <div class="char-counter" id="char-counter-${question.id}">
+                <span class="char-count">0</span> / 800 caracteres
+            </div>
         </div>
     `;
+}
+
+// Validar longitud del texto
+function validateTextLength(textarea, questionId) {
+    const charCount = textarea.value.length;
+    const charCounter = document.getElementById(`char-counter-${questionId}`);
+    const charCountSpan = charCounter.querySelector('.char-count');
+    
+    charCountSpan.textContent = charCount;
+    
+    // Cambiar color según la longitud
+    if (charCount > 800) {
+        charCounter.style.color = '#e74c3c'; // Rojo si excede el máximo
+        textarea.style.borderColor = '#e74c3c';
+    } else {
+        charCounter.style.color = '#27ae60'; // Verde si está en rango
+        textarea.style.borderColor = '#27ae60';
+    }
+    
+    // Actualizar respuesta
+    updateResponse(questionId, textarea.value);
 }
 
 // Actualizar respuesta
@@ -210,22 +235,151 @@ function validateForm() {
     if (!surveyData) return;
 
     const requiredQuestions = surveyData.preguntas.filter(q => q.obligatoria);
-    const allRequiredAnswered = requiredQuestions.every(q => {
+    const unansweredRequired = [];
+    const invalidTextAnswers = [];
+
+    // Validar preguntas obligatorias
+    requiredQuestions.forEach(q => {
         const response = responses[q.id];
         console.log('🔍 Validando pregunta obligatoria:', q.id, 'Respuesta:', response);
-        if (q.tipo === 'seleccion_multiple') {
-            return response && response.length > 0;
-        } else {
-            return response && response.toString().trim() !== '';
+        
+        if (q.tipo === 'texto_abierto') {
+            if (!response || response.toString().trim() === '') {
+                unansweredRequired.push(q.enunciado);
+            } else if (response.length > 800) {
+                invalidTextAnswers.push(q.enunciado);
+            }
+        } else if (q.tipo === 'seleccion_multiple') {
+            if (!response || response.length === 0) {
+                unansweredRequired.push(q.enunciado);
+            }
+        } else if (q.tipo === 'seleccion_unica') {
+            if (!response || response.toString().trim() === '') {
+                unansweredRequired.push(q.enunciado);
+            }
         }
     });
 
-    document.getElementById('submitBtn').disabled = !allRequiredAnswered;
+    // Validar también las respuestas de texto abierto no obligatorias
+    const textQuestions = surveyData.preguntas.filter(q => q.tipo === 'texto_abierto');
+    textQuestions.forEach(q => {
+        const response = responses[q.id];
+        if (response && response.toString().trim() !== '' && response.length > 800) {
+            invalidTextAnswers.push(q.enunciado);
+        }
+    });
+
+    const isValid = unansweredRequired.length === 0 && invalidTextAnswers.length === 0;
+    document.getElementById('submitBtn').disabled = !isValid;
+
+    // Mostrar mensajes de error si existen
+    if (unansweredRequired.length > 0 || invalidTextAnswers.length > 0) {
+        let errorMessage = '';
+        
+        if (unansweredRequired.length > 0) {
+            errorMessage += 'Preguntas obligatorias sin responder:\n• ' + unansweredRequired.join('\n• ');
+        }
+        
+        if (invalidTextAnswers.length > 0) {
+            if (errorMessage) errorMessage += '\n\n';
+            errorMessage += 'Respuestas muy largas (máximo 800 caracteres):\n• ' + invalidTextAnswers.join('\n• ');
+        }
+        
+        // Mostrar mensaje en consola para debugging
+        console.log('❌ Errores de validación:', errorMessage);
+    }
+}
+
+// Mostrar notificación de error
+function showError(message) {
+    // Crear o actualizar elemento de notificación
+    let notification = document.getElementById('error-notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'error-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 400px;
+            white-space: pre-line;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+        document.body.appendChild(notification);
+    }
+    
+    notification.textContent = message;
+    notification.style.display = 'block';
+    
+    // Auto-ocultar después de 5 segundos
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 5000);
 }
 
 // Enviar respuestas
 async function submitResponses(event) {
     event.preventDefault();
+    
+    // Validar antes de enviar
+    if (!surveyData) return;
+
+    const requiredQuestions = surveyData.preguntas.filter(q => q.obligatoria);
+    const unansweredRequired = [];
+    const invalidTextAnswers = [];
+
+    // Validar preguntas obligatorias
+    requiredQuestions.forEach(q => {
+        const response = responses[q.id];
+        
+        if (q.tipo === 'texto_abierto') {
+            if (!response || response.toString().trim() === '') {
+                unansweredRequired.push(q.enunciado);
+            } else if (response.length > 800) {
+                invalidTextAnswers.push(q.enunciado);
+            }
+        } else if (q.tipo === 'seleccion_multiple') {
+            if (!response || response.length === 0) {
+                unansweredRequired.push(q.enunciado);
+            }
+        } else if (q.tipo === 'seleccion_unica') {
+            if (!response || response.toString().trim() === '') {
+                unansweredRequired.push(q.enunciado);
+            }
+        }
+    });
+
+    // Validar también las respuestas de texto abierto no obligatorias
+    const textQuestions = surveyData.preguntas.filter(q => q.tipo === 'texto_abierto');
+    textQuestions.forEach(q => {
+        const response = responses[q.id];
+        if (response && response.toString().trim() !== '' && response.length > 800) {
+            invalidTextAnswers.push(q.enunciado);
+        }
+    });
+
+    // Mostrar errores si existen
+    if (unansweredRequired.length > 0 || invalidTextAnswers.length > 0) {
+        let errorMessage = '';
+        
+        if (unansweredRequired.length > 0) {
+            errorMessage += 'Preguntas obligatorias sin responder:\n• ' + unansweredRequired.join('\n• ');
+        }
+        
+        if (invalidTextAnswers.length > 0) {
+            if (errorMessage) errorMessage += '\n\n';
+            errorMessage += 'Respuestas muy largas (máximo 800 caracteres):\n• ' + invalidTextAnswers.join('\n• ');
+        }
+        
+        showError(errorMessage);
+        return; // No enviar si hay errores
+    }
     
     if (!surveyData) return;
 

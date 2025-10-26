@@ -182,8 +182,8 @@ function renderQuestionContent(question) {
         return `
             <div class="text-input-container">
                 <label class="correct-answer-label">
-                    <span>Respuesta correcta:</span>
-                    <input type="text" placeholder="Ingresa la respuesta correcta..." 
+                    <span>Ejemplo de respuesta correcta:</span>
+                    <input type="text" placeholder="Ingresa un ejemplo de respuesta correcta..." 
                            value="${question.respuesta_correcta || ''}" 
                            onchange="updateCorrectAnswer(${question.id}, this.value)"
                            class="correct-answer-input">

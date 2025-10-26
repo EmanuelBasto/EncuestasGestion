@@ -184,6 +184,25 @@ header h1 {
     font-style: italic;
 }
 
+.char-counter {
+    font-size: 0.85rem;
+    margin-top: 5px;
+    text-align: right;
+    font-weight: 500;
+}
+
+.char-counter .char-count {
+    font-weight: bold;
+}
+
+.char-counter.valid {
+    color: #27ae60;
+}
+
+.char-counter.invalid {
+    color: #e74c3c;
+}
+
 /* Botón de envío */
 .form-actions {
     text-align: center;
