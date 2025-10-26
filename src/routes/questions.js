@@ -110,7 +110,10 @@ router.put(
     body('tipo').optional().isIn(['seleccion_unica', 'seleccion_multiple', 'texto_abierto']).withMessage('Tipo inválido'),
     body('obligatoria').optional().isBoolean().withMessage('Obligatoria debe ser booleano'),
     body('posicion').optional().isInt({ min: 1 }).withMessage('Posición debe ser un número positivo'),
-    body('opciones').optional().isArray().withMessage('Opciones debe ser un array')
+    body('opciones').optional().isArray().withMessage('Opciones debe ser un array'),
+    body('opciones.*.texto').optional().trim().notEmpty().withMessage('Texto de opción requerido'),
+    body('opciones.*.es_correcta').optional().isBoolean().withMessage('es_correcta debe ser booleano'),
+    body('opciones.*.posicion').optional().isInt({ min: 1 }).withMessage('Posición de opción debe ser un número positivo')
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -122,6 +125,10 @@ router.put(
     const { enunciado, tipo, obligatoria, posicion, opciones, respuesta_correcta } = req.body;
 
     try {
+      console.log('Actualizando pregunta ID:', id);
+      console.log('Datos recibidos:', req.body);
+      console.log('Usuario:', req.user.id);
+
       // Verificar que la pregunta pertenece a una encuesta del usuario
       const { rows: questionRows } = await query(
         `SELECT p.* FROM preguntas p
@@ -131,10 +138,12 @@ router.put(
       );
 
       if (!questionRows.length) {
+        console.log('Pregunta no encontrada para usuario:', req.user.id);
         return res.status(404).json({ ok: false, message: 'Pregunta no encontrada' });
       }
 
       const preguntaActual = questionRows[0];
+      console.log('Pregunta actual:', preguntaActual);
 
       // Construir query dinámicamente para actualizar pregunta
       const updates = [];
@@ -181,28 +190,56 @@ router.put(
 
       // Si se proporcionan opciones, actualizarlas
       if (opciones !== undefined) {
-        // Solo eliminar opciones si el nuevo tipo es texto_abierto
-        if (tipo === 'texto_abierto') {
+        console.log('Actualizando opciones:', opciones);
+        // Obtener el tipo actual de la pregunta si no se proporciona en la actualización
+        const preguntaTipo = tipo || preguntaActual.tipo;
+        console.log('Tipo de pregunta:', preguntaTipo);
+        
+        // Solo eliminar opciones si el tipo es texto_abierto
+        if (preguntaTipo === 'texto_abierto') {
+          console.log('Eliminando opciones para texto abierto');
           await query('DELETE FROM opciones WHERE pregunta_id = $1', [id]);
         } else {
-          // Para selección única/múltiple, eliminar opciones existentes y crear nuevas
-          await query('DELETE FROM opciones WHERE pregunta_id = $1', [id]);
-
-          // Crear nuevas opciones si las hay
-          if (opciones.length > 0) {
-            const opcionesValues = opciones.map((opcion, index) => 
-              `($1, $${index * 3 + 2}, $${index * 3 + 3}, $${index * 3 + 4})`
-            ).join(', ');
-
-            const opcionesParams = [id];
-            opciones.forEach((opcion, index) => {
-              opcionesParams.push(opcion.texto, index + 1, opcion.es_correcta || false);
-            });
-
-            await query(
-              `INSERT INTO opciones (pregunta_id, texto, posicion, es_correcta) VALUES ${opcionesValues}`,
-              opcionesParams
-            );
+          console.log('Procesando opciones para selección');
+          
+          // Obtener opciones existentes
+          const { rows: existingOptions } = await query(
+            'SELECT id FROM opciones WHERE pregunta_id = $1 ORDER BY posicion',
+            [id]
+          );
+          
+          console.log('Opciones existentes:', existingOptions);
+          
+          // Actualizar opciones existentes
+          for (let i = 0; i < opciones.length; i++) {
+            const opcion = opciones[i];
+            if (existingOptions[i]) {
+              // Actualizar opción existente
+              console.log(`Actualizando opción ${existingOptions[i].id}:`, opcion);
+              await query(
+                'UPDATE opciones SET texto = $1, posicion = $2, es_correcta = $3 WHERE id = $4',
+                [opcion.texto, opcion.posicion || (i + 1), opcion.es_correcta || false, existingOptions[i].id]
+              );
+            } else {
+              // Crear nueva opción si no existe
+              console.log(`Creando nueva opción:`, opcion);
+              await query(
+                'INSERT INTO opciones (pregunta_id, texto, posicion, es_correcta) VALUES ($1, $2, $3, $4)',
+                [id, opcion.texto, opcion.posicion || (i + 1), opcion.es_correcta || false]
+              );
+            }
+          }
+          
+          // Eliminar opciones sobrantes si hay menos opciones que antes
+          if (opciones.length < existingOptions.length) {
+            const idsToDelete = existingOptions.slice(opciones.length).map(opt => opt.id);
+            if (idsToDelete.length > 0) {
+              console.log('Eliminando opciones sobrantes:', idsToDelete);
+              await query(
+                `DELETE FROM opciones WHERE id IN (${idsToDelete.map((_, i) => `$${i + 1}`).join(', ')})`,
+                idsToDelete
+              );
+            }
           }
         }
       }

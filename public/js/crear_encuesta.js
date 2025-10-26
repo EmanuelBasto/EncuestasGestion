@@ -281,6 +281,7 @@ async function addNewQuestion() {
 // Actualizar pregunta
 async function updateQuestion(questionId, updates) {
     try {
+        console.log('Actualizando pregunta ID:', questionId, 'con datos:', updates);
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
             method: 'PUT',
@@ -290,6 +291,13 @@ async function updateQuestion(questionId, updates) {
             },
             body: JSON.stringify(updates)
         });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error del servidor:', response.status, errorText);
+            showError(`Error al actualizar la pregunta: ${response.status}`);
+            return;
+        }
 
         const data = await response.json();
         
@@ -483,6 +491,7 @@ async function toggleCorrectAnswer(optionId) {
     }
 
     // Actualizar en el servidor
+    console.log('Enviando opciones:', question.opciones);
     await updateQuestion(question.id, { opciones: question.opciones });
     
     // Actualizar la UI
