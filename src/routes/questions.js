@@ -101,6 +101,79 @@ router.post(
   }
 );
 
+// Reordenar preguntas - ESTA RUTA DEBE ESTAR ANTES DE /:id
+router.put(
+  '/reorder',
+  requireAuth,
+  async (req, res) => {
+    const { encuesta_id, preguntas } = req.body;
+
+    try {
+      console.log('=== REORDENANDO PREGUNTAS ===');
+      console.log('encuesta_id:', encuesta_id, typeof encuesta_id);
+      console.log('preguntas:', preguntas);
+      console.log('usuario:', req.user.id);
+
+      // Validar que tenemos encuesta_id y preguntas
+      if (!encuesta_id || !preguntas || !Array.isArray(preguntas)) {
+        console.log('❌ Datos inválidos');
+        return res.status(400).json({ ok: false, message: 'Datos inválidos para reordenar' });
+      }
+
+      // Verificar que la encuesta pertenece al usuario
+      console.log('Verificando encuesta...');
+      const { rows: surveyRows } = await query(
+        'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
+        [encuesta_id, req.user.id]
+      );
+
+      console.log('Resultado verificación:', surveyRows.length, 'encuestas encontradas');
+      if (!surveyRows.length) {
+        console.log('❌ Encuesta no encontrada o no pertenece al usuario');
+        return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+      }
+
+      // Actualizar posiciones en una transacción
+      console.log('Actualizando posiciones...');
+      for (const pregunta of preguntas) {
+        // Convertir a enteros explícitamente
+        const preguntaId = parseInt(pregunta.id);
+        const posicion = parseInt(pregunta.posicion);
+        
+        console.log(`Actualizando pregunta ${preguntaId} (entero: ${preguntaId}) a posición ${posicion} (entero: ${posicion})`);
+        
+        try {
+          const result = await query(
+            'UPDATE preguntas SET posicion = $1 WHERE id = $2 AND encuesta_id = $3',
+            [posicion, preguntaId, encuesta_id]
+          );
+          console.log(`✅ Actualizada: ${result.rowCount} fila(s) afectada(s)`);
+          
+          if (result.rowCount === 0) {
+            console.warn(`⚠️ No se actualizó ninguna fila para pregunta ${preguntaId}. Verificando si existe...`);
+            const checkResult = await query(
+              'SELECT id, encuesta_id FROM preguntas WHERE id = $1',
+              [preguntaId]
+            );
+            console.log('Pregunta en BD:', checkResult.rows);
+          }
+        } catch (updateError) {
+          console.error(`❌ Error actualizando pregunta ${preguntaId}:`, updateError.message);
+          console.error('Stack:', updateError.stack);
+          throw updateError;
+        }
+      }
+
+      console.log('✅ Preguntas reordenadas exitosamente');
+      res.json({ ok: true, message: 'Preguntas reordenadas correctamente' });
+    } catch (error) {
+      console.error('❌ ERROR REORDENANDO PREGUNTAS:', error);
+      console.error('Stack:', error.stack);
+      res.status(500).json({ ok: false, message: 'Error interno del servidor: ' + error.message });
+    }
+  }
+);
+
 // Actualizar pregunta
 router.put(
   '/:id',
@@ -352,50 +425,5 @@ router.delete('/:id', requireAuth, async (req, res) => {
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });
-
-// Reordenar preguntas
-router.put(
-  '/reorder',
-  requireAuth,
-  [
-    body('encuesta_id').isInt({ min: 1 }).withMessage('ID de encuesta inválido'),
-    body('preguntas').isArray().withMessage('Preguntas debe ser un array'),
-    body('preguntas.*.id').isInt({ min: 1 }).withMessage('ID de pregunta inválido'),
-    body('preguntas.*.posicion').isInt({ min: 1 }).withMessage('Posición inválida')
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ ok: false, errors: errors.array() });
-    }
-
-    const { encuesta_id, preguntas } = req.body;
-
-    try {
-      // Verificar que la encuesta pertenece al usuario
-      const { rows: surveyRows } = await query(
-        'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
-        [encuesta_id, req.user.id]
-      );
-
-      if (!surveyRows.length) {
-        return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
-      }
-
-      // Actualizar posiciones
-      for (const pregunta of preguntas) {
-        await query(
-          'UPDATE preguntas SET posicion = $1 WHERE id = $2 AND encuesta_id = $3',
-          [pregunta.posicion, pregunta.id, encuesta_id]
-        );
-      }
-
-      res.json({ ok: true, message: 'Preguntas reordenadas correctamente' });
-    } catch (error) {
-      console.error('Error reordenando preguntas:', error);
-      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
-    }
-  }
-);
 
 export default router;

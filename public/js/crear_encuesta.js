@@ -7,6 +7,8 @@ let questions = [];
 let questionCounter = 0;
 let hasUnsavedChanges = false;
 let originalQuestionsData = null;
+let lastSavedData = null; // Guarda el estado después de guardar
+let changeNotificationShown = false; // Evita mostrar notificación repetida
 
 // Utilidades
 function showError(message) {
@@ -130,8 +132,19 @@ async function loadSurvey(surveyId) {
         if (data.ok) {
             currentSurvey = data.encuesta;
             questions = currentSurvey.preguntas || [];
+            
+            console.log('Preguntas recibidas del servidor:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+            
+            // Ordenar preguntas por posición
+            questions.sort((a, b) => (a.posicion || 0) - (b.posicion || 0));
+            
+            console.log('Preguntas después de ordenar:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+            
             updateSurveyTitle();
             renderQuestions();
+            
+            // Guardar el estado inicial como referencia
+            saveCurrentState();
         } else {
             showError('Error al cargar la encuesta');
         }
@@ -172,6 +185,7 @@ async function saveSurveyTitle() {
         if (data.ok) {
             currentSurvey.titulo = newTitle;
             showSuccess('Título actualizado');
+            markAsChanged();
         } else {
             showError('Error al actualizar el título');
         }
@@ -292,6 +306,12 @@ function addQuestionEventListeners() {
             updateQuestionType(questionId, newType);
         });
     });
+    
+    // Event listener para detectar cambios en el título
+    const titleElement = document.querySelector('.title-container h1');
+    if (titleElement) {
+        titleElement.addEventListener('input', markAsChanged);
+    }
 }
 
 // Crear nueva pregunta
@@ -328,6 +348,7 @@ async function addNewQuestion() {
             questions.push(data.pregunta);
             renderQuestions();
             showSuccess('Pregunta agregada');
+            markAsChanged();
         } else {
             showError(data.message || 'Error al crear la pregunta');
         }
@@ -337,10 +358,47 @@ async function addNewQuestion() {
     }
 }
 
+// Función para guardar el estado actual
+function saveCurrentState() {
+    const currentTitle = document.querySelector('.title-container h1')?.textContent.trim() || '';
+    lastSavedData = {
+        questions: JSON.parse(JSON.stringify(questions)),
+        title: currentTitle
+    };
+    hasUnsavedChanges = false;
+    changeNotificationShown = false;
+}
+
+// Función para verificar si hay cambios comparando con el último estado guardado
+function checkForChanges() {
+    if (!lastSavedData) return false;
+    
+    // Comparar preguntas
+    const currentQuestionsStr = JSON.stringify(questions);
+    const savedQuestionsStr = JSON.stringify(lastSavedData.questions);
+    const questionsChanged = currentQuestionsStr !== savedQuestionsStr;
+    
+    // Comparar título
+    const currentTitle = document.querySelector('.title-container h1')?.textContent.trim() || '';
+    const titleChanged = currentTitle !== lastSavedData.title;
+    
+    return questionsChanged || titleChanged;
+}
+
 // Función para marcar cambios pendientes
 function markAsChanged() {
     hasUnsavedChanges = true;
-    showInfo('Has realizado cambios. No olvides guardar la encuesta.');
+    
+    // Verificar cambios solo después de que se haya guardado al menos una vez
+    if (lastSavedData) {
+        if (checkForChanges()) {
+            // Solo mostrar la notificación si no se ha mostrado ya
+            if (!changeNotificationShown) {
+                showInfo('Tienes cambios sin guardar. Guarda la encuesta para actualizar el link de la encuesta.');
+                changeNotificationShown = true;
+            }
+        }
+    }
 }
 
 // Función para verificar si hay cambios pendientes
@@ -355,7 +413,13 @@ function markAsSaved() {
 
 // Actualizar pregunta
 async function updateQuestion(questionId, updates) {
-    // Marcar como cambiado
+    // Actualizar el array local primero
+    const questionIndex = questions.findIndex(q => q.id == questionId);
+    if (questionIndex !== -1) {
+        questions[questionIndex] = { ...questions[questionIndex], ...updates };
+    }
+    
+    // Marcar como cambiado después de actualizar el array
     markAsChanged();
     
     try {
@@ -393,8 +457,20 @@ async function updateQuestion(questionId, updates) {
         const data = await response.json();
         
         if (data.ok) {
-            const questionIndex = questions.findIndex(q => q.id == questionId);
+            // Actualizar con los datos del servidor, preservando el estado actual de es_correcta
             if (questionIndex !== -1) {
+                // Si estamos actualizando opciones, preservar el estado de es_correcta
+                if (updates.opciones && data.pregunta && data.pregunta.opciones) {
+                    // Mapear el estado de es_correcta que acabamos de actualizar
+                    const currentOpciones = questionIndex !== -1 ? questions[questionIndex].opciones : [];
+                    data.pregunta.opciones.forEach((serverOption, index) => {
+                        const currentOption = currentOpciones[index];
+                        if (currentOption && serverOption.texto === currentOption.texto) {
+                            // Preservar el estado de es_correcta si ya lo actualizamos
+                            serverOption.es_correcta = currentOption.es_correcta;
+                        }
+                    });
+                }
                 questions[questionIndex] = data.pregunta;
             }
         } else {
@@ -452,6 +528,7 @@ async function duplicateQuestion(questionId) {
             questions.push(data.pregunta);
             renderQuestions();
             showSuccess('Pregunta duplicada');
+            markAsChanged();
         } else {
             showError('Error al duplicar la pregunta');
         }
@@ -482,6 +559,7 @@ async function deleteQuestion(questionId) {
             questions = questions.filter(q => q.id != questionId);
             renderQuestions();
             showSuccess('Pregunta eliminada');
+            markAsChanged();
         } else {
             showError('Error al eliminar la pregunta');
         }
@@ -518,15 +596,16 @@ function addOption(questionId) {
     input.focus();
     
     // Agregar event listener para guardar cuando se pierda el foco
-    input.addEventListener('blur', function() {
+    input.addEventListener('blur', async function() {
         const texto = this.value.trim();
         if (texto) {
             // Agregar la opción al array de opciones de la pregunta
             if (!question.opciones) question.opciones = [];
             question.opciones.push({ texto: texto, es_correcta: false });
             
-            // Actualizar en el servidor
-            updateQuestion(questionId, { opciones: question.opciones });
+            // Actualizar en el servidor y re-renderizar para obtener el ID
+            await updateQuestion(questionId, { opciones: question.opciones });
+            renderQuestions();
         } else {
             // Si está vacío, remover el elemento
             newOptionDiv.remove();
@@ -568,6 +647,8 @@ async function toggleCorrectAnswer(optionId) {
     const option = question.opciones.find(o => o.id == optionId);
     if (!option) return;
 
+    const previousState = option.es_correcta;
+
     // Si es selección única, validar que solo haya una respuesta correcta
     if (question.tipo === 'seleccion_unica') {
         const correctAnswers = question.opciones.filter(opt => opt.es_correcta);
@@ -596,12 +677,46 @@ async function toggleCorrectAnswer(optionId) {
         option.es_correcta = !option.es_correcta;
     }
 
-    // Actualizar en el servidor
-    console.log('Enviando opciones:', question.opciones);
-    await updateQuestion(question.id, { opciones: question.opciones });
-    
-    // Actualizar la UI
-    renderQuestions();
+    // Marcar como cambiado
+    markAsChanged();
+
+    // Actualizar en el servidor SIN re-renderizar (para mantener el estado UI)
+    try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API_BASE_URL}/questions/${question.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ opciones: question.opciones })
+        });
+        
+        // Actualizar UI directamente sin re-renderizar toda la pregunta
+        const questionElement = document.querySelector(`[data-question-id="${question.id}"]`);
+        if (questionElement) {
+            const optionElement = questionElement.querySelector(`[data-option-id="${optionId}"]`);
+            if (optionElement) {
+                const correctBtn = optionElement.querySelector('.correct-btn');
+                if (correctBtn) {
+                    if (option.es_correcta) {
+                        correctBtn.classList.add('correct');
+                        correctBtn.textContent = '✅';
+                        correctBtn.title = 'Quitar como correcta';
+                    } else {
+                        correctBtn.classList.remove('correct');
+                        correctBtn.textContent = '⚪';
+                        correctBtn.title = 'Marcar como correcta';
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error actualizando respuesta correcta:', error);
+        // Revertir el cambio si falla
+        option.es_correcta = previousState;
+        showError('Error al actualizar la respuesta correcta');
+    }
 }
 
 // Actualizar respuesta correcta para texto abierto
@@ -680,7 +795,6 @@ async function removeOption(optionId) {
     
     try {
         await updateQuestion(question.id, { opciones: updatedOptions });
-        renderQuestions();
     } catch (error) {
         console.log('Error capturado en removeOption:', error);
         console.log('Mensaje de error:', error.message);
@@ -697,7 +811,6 @@ async function removeOption(optionId) {
             if (confirmDelete) {
                 try {
                     await updateQuestion(question.id, { opciones: updatedOptions, forceDelete: true });
-                    renderQuestions();
                     showSuccess('Opción eliminada correctamente (incluyendo respuestas asociadas)');
                 } catch (forceError) {
                     console.error('Error en eliminación forzada:', forceError);
@@ -737,10 +850,22 @@ async function saveSurvey() {
             });
         }
 
-        // Guardar todas las preguntas
-        for (const question of questions) {
+        // Actualizar posiciones basándose en el orden actual del array questions
+        questions.forEach((question, index) => {
+            question.posicion = index + 1;
+        });
+        
+        console.log('📋 Orden actual del array questions:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+        
+        // Guardar todas las preguntas con sus posiciones
+        // Usar el array questions que ya está en el orden correcto después del drag and drop
+        for (let index = 0; index < questions.length; index++) {
+            const question = questions[index];
             const questionElement = document.querySelector(`[data-question-id="${question.id}"]`);
-            if (!questionElement) continue;
+            if (!questionElement) {
+                console.error(`No se encontró elemento DOM para pregunta ${question.id}`);
+                continue;
+            }
 
             const enunciado = questionElement.querySelector('[data-field="enunciado"]').textContent.trim();
             const tipo = questionElement.querySelector('[data-field="tipo"]').value;
@@ -759,16 +884,27 @@ async function saveSurvey() {
                 const optionInputs = questionElement.querySelectorAll('.option input[type="text"]');
                 const correctButtons = questionElement.querySelectorAll('.correct-btn');
                 
-                opciones = Array.from(optionInputs).map((input, index) => {
-                    const correctBtn = correctButtons[index];
+                opciones = Array.from(optionInputs).map((input, optIndex) => {
+                    const correctBtn = correctButtons[optIndex];
                     const es_correcta = correctBtn ? correctBtn.classList.contains('correct') : false;
+                    
+                    // Buscar la opción original por índice (el orden debe coincidir)
+                    let optionData = question.opciones && question.opciones[optIndex];
+                    
+                    // Si no hay opción en ese índice, buscar por texto
+                    if (!optionData && question.opciones) {
+                        optionData = question.opciones.find(opt => opt.texto === input.value.trim());
+                    }
                     
                     return {
                         texto: input.value.trim(),
-                        es_correcta: es_correcta
+                        es_correcta: es_correcta,
+                        id: optionData ? optionData.id : null
                     };
                 }).filter(option => option.texto !== '');
             }
+
+            console.log(`Guardando pregunta ${question.id} en posición ${question.posicion}:`, { enunciado, tipo });
 
             await fetch(`${API_BASE_URL}/questions/${question.id}`, {
                 method: 'PUT',
@@ -784,9 +920,37 @@ async function saveSurvey() {
                 })
             });
         }
+        
+        const questionsToReorder = questions.map(q => ({ id: parseInt(q.id), posicion: parseInt(q.posicion) }));
+        console.log('Orden final de preguntas después de guardar:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+        console.log('Enviando al servidor:', JSON.stringify({ encuesta_id: parseInt(currentSurvey.id), questions: questionsToReorder }));
+
+        // Guardar el orden de las preguntas (esto es lo que realmente actualiza las posiciones en BD)
+        const reorderResponse = await fetch(`${API_BASE_URL}/questions/reorder`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                encuesta_id: parseInt(currentSurvey.id),
+                preguntas: questionsToReorder
+            })
+        });
+        
+        const reorderData = await reorderResponse.json();
+        console.log('Respuesta de reorder:', reorderData);
+        
+        if (!reorderData.ok) {
+            console.error('Error guardando el orden:', reorderData);
+            showError('Error al guardar el orden de las preguntas: ' + reorderData.message);
+            return;
+        }
 
         showSuccess('¡Encuesta guardada exitosamente!');
         markAsSaved(); // Marcar como guardado
+        saveCurrentState(); // Guardar el estado después de guardar
+        showSuccess('El link de la encuesta se ha actualizado correctamente.');
         
     } catch (error) {
         console.error('Error guardando encuesta:', error);
@@ -803,7 +967,8 @@ function goToSurveys() {
 }
 
 function goToResponses() {
-    if (hasUnsavedChanges) {
+    // Verificar si hay cambios pendientes
+    if (lastSavedData && checkForChanges()) {
         showError('Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña.');
         return;
     }
@@ -814,7 +979,8 @@ function goToResponses() {
 }
 
 function goToShare() {
-    if (hasUnsavedChanges) {
+    // Verificar si hay cambios pendientes
+    if (lastSavedData && checkForChanges()) {
         showError('Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña.');
         return;
     }
@@ -864,11 +1030,17 @@ document.addEventListener('DOMContentLoaded', () => {
 // Inicializar drag and drop para preguntas
 function initializeDragAndDrop() {
     const questionSections = document.querySelectorAll('.survey-section');
+    const addQuestionSection = document.querySelector('.add-question-section');
     
     questionSections.forEach(section => {
-        // Verificar que no es el add-question-section
+        // NO hacer drag and drop con el add-question-section
         if (section.classList.contains('add-question-section')) {
             section.draggable = false;
+            section.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                // NO permitir drop en el add-question-section
+                e.dataTransfer.dropEffect = 'none';
+            });
             return;
         }
         
@@ -876,7 +1048,6 @@ function initializeDragAndDrop() {
         
         section.addEventListener('dragstart', (e) => {
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', section.innerHTML);
             e.dataTransfer.setData('text/plain', section.dataset.questionId);
             section.classList.add('dragging');
         });
@@ -889,46 +1060,51 @@ function initializeDragAndDrop() {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
+            // NO permitir insertar después del add-question-section
             const dragging = document.querySelector('.dragging');
-            const afterElement = getDragAfterElement(section, e.clientY);
+            if (!dragging) return;
             
-            // Obtener el add-question-section para verificar que no estamos insertando después de él
-            const addQuestionSection = section.parentNode.querySelector('.add-question-section');
+            const surveyColumn = document.querySelector('.survey-column');
+            const addQuestionSection = surveyColumn.querySelector('.add-question-section');
+            
+            // Obtener todos los elementos que NO son add-question-section
+            const allSections = Array.from(surveyColumn.children);
+            const regularSections = allSections.filter(s => !s.classList.contains('add-question-section'));
+            
+            // Si estamos sobre el add-question-section, NO permitir drop
+            if (e.target === addQuestionSection || addQuestionSection.contains(e.target)) {
+                return;
+            }
+            
+            // Encontrar el elemento más cercano donde insertar
+            const afterElement = getDragAfterElement(section, e.clientY, regularSections);
             
             if (afterElement == null) {
-                // Si afterElement es null y nextSibling es add-question-section, no hacer nada
-                if (section.nextSibling && section.nextSibling.classList && section.nextSibling.classList.contains('add-question-section')) {
-                    // Insertar antes del add-question-section
-                    section.parentNode.insertBefore(dragging, addQuestionSection);
-                } else {
-                    section.parentNode.appendChild(dragging);
-                }
+                // Insertar antes del add-question-section
+                surveyColumn.insertBefore(dragging, addQuestionSection);
             } else {
-                // Si afterElement es add-question-section o está después de él, insertar antes
-                if (afterElement.classList && afterElement.classList.contains('add-question-section')) {
-                    section.parentNode.insertBefore(dragging, addQuestionSection);
-                } else {
-                    section.parentNode.insertBefore(dragging, afterElement);
-                }
+                surveyColumn.insertBefore(dragging, afterElement);
             }
         });
         
-        section.addEventListener('drop', (e) => {
+        section.addEventListener('drop', async (e) => {
             e.preventDefault();
             
             const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
             const targetId = parseInt(section.dataset.questionId);
             
+            console.log('🎯 Drop event - Dragged:', draggedId, 'Target:', targetId);
+            
             if (draggedId !== targetId) {
-                reorderQuestions(draggedId, targetId);
+                await reorderQuestions(draggedId, targetId);
             }
         });
     });
 }
 
 // Obtener el elemento después del cual insertar
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.parentNode.querySelectorAll('.survey-section:not(.dragging)')];
+function getDragAfterElement(container, y, elements = null) {
+    const draggableElements = elements || [...container.parentNode.querySelectorAll('.survey-section:not(.dragging):not(.add-question-section)')];
     
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
@@ -942,27 +1118,51 @@ function getDragAfterElement(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
-// Reordenar preguntas en el array y actualizar el backend
+// Reordenar preguntas en el array y guardar inmediatamente
 async function reorderQuestions(draggedId, targetId) {
-    const draggedIndex = questions.findIndex(q => q.id === draggedId);
-    const targetIndex = questions.findIndex(q => q.id === targetId);
+    console.log('🎯 Iniciando reordenamiento - Dragged ID:', draggedId, 'Target ID:', targetId);
+    console.log('Array actual:', questions.map(q => ({ id: q.id, tipo: typeof q.id })));
     
-    if (draggedIndex === -1 || targetIndex === -1) return;
+    // Convertir IDs a strings para comparar correctamente
+    const draggedIdStr = String(draggedId);
+    const targetIdStr = String(targetId);
+    
+    const draggedIndex = questions.findIndex(q => String(q.id) === draggedIdStr);
+    const targetIndex = questions.findIndex(q => String(q.id) === targetIdStr);
+    
+    console.log('Índices - Dragged:', draggedIndex, 'Target:', targetIndex);
+    console.log('ID buscado (dragged):', draggedIdStr, 'ID buscado (target):', targetIdStr);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+        console.log('❌ Índices inválidos');
+        console.log('IDs en el array:', questions.map(q => ({ id: q.id, tipo: typeof q.id })));
+        return;
+    }
     
     // Mover el elemento en el array
     const [movedQuestion] = questions.splice(draggedIndex, 1);
     questions.splice(targetIndex, 0, movedQuestion);
     
-    // Actualizar posiciones en el array
+    // Actualizar posiciones en el array local
     questions.forEach((question, index) => {
         question.posicion = index + 1;
     });
     
+    console.log('✅ Preguntas reordenadas localmente:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+    
     // Marcar como cambiado
     markAsChanged();
     
-    // Actualizar en el backend
+    // Guardar el nuevo orden inmediatamente en el servidor
     try {
+        const questionsToReorder = questions.map(q => ({ id: parseInt(q.id), posicion: parseInt(q.posicion) }));
+        
+        console.log('💾 Guardando orden inmediatamente:', questionsToReorder);
+        console.log('💾 Enviando al servidor:', JSON.stringify({
+            encuesta_id: parseInt(currentSurvey.id),
+            questions: questionsToReorder
+        }));
+        
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/questions/reorder`, {
             method: 'PUT',
@@ -971,20 +1171,22 @@ async function reorderQuestions(draggedId, targetId) {
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                questions: questions.map(q => ({ id: q.id, posicion: q.posicion }))
+                encuesta_id: parseInt(currentSurvey.id),
+                preguntas: questionsToReorder
             })
         });
         
         const data = await response.json();
         
-        if (!data.ok) {
-            console.error('Error reordenando preguntas:', data.message);
-            renderQuestions(); // Renderizar de nuevo para revertir cambios visuales
+        if (data.ok) {
+            console.log('✅ Orden guardado exitosamente en el servidor');
+            saveCurrentState(); // Actualizar el estado guardado
         } else {
-            showSuccess('Preguntas reordenadas correctamente');
+            console.error('❌ Error guardando el orden:', data);
+            showError('Error al actualizar el orden de las preguntas');
         }
     } catch (error) {
-        console.error('Error reordenando preguntas:', error);
-        renderQuestions(); // Renderizar de nuevo para revertir cambios visuales
+        console.error('❌ Error guardando el orden de preguntas:', error);
+        showError('Error de conexión al guardar el orden');
     }
 }
