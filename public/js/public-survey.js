@@ -4,6 +4,9 @@ const API_BASE_URL = window.location.origin + '/api';
 // Variables globales
 let surveyData = null;
 let responses = {};
+let surveyVersion = null; // Versión actual de la encuesta
+let versionCheckInterval = null; // Intervalo para verificar cambios
+let surveyChanged = false; // Flag si detectó cambios
 
 // Utilidades
 function showError(message) {
@@ -67,7 +70,9 @@ async function loadPublicSurvey(token) {
         
         if (data.ok) {
             surveyData = data.encuesta;
+            surveyVersion = data.version; // Guardar la versión inicial
             renderSurvey();
+            startVersionCheck(token); // Iniciar verificación periódica
         } else {
             showError(data.message || 'Encuesta no encontrada');
             setTimeout(() => {
@@ -77,6 +82,85 @@ async function loadPublicSurvey(token) {
     } catch (error) {
         console.error('Error cargando encuesta:', error);
         showError('Error de conexión');
+    }
+}
+
+// Verificar versión de la encuesta
+async function checkSurveyVersion(token) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/responses/check-version/${token}`);
+        const data = await response.json();
+        
+        if (data.ok) {
+            // Si la versión es diferente, hay cambios
+            if (data.version !== surveyVersion) {
+                console.log('⚠️ Cambios detectados en la encuesta');
+                surveyChanged = true;
+                showSurveyChangedModal();
+                stopVersionCheck(); // Dejar de verificar
+            }
+        }
+    } catch (error) {
+        console.error('Error verificando versión:', error);
+    }
+}
+
+// Iniciar verificación periódica de cambios
+function startVersionCheck(token) {
+    // Verificar cada 10 segundos si hay cambios
+    versionCheckInterval = setInterval(() => {
+        checkSurveyVersion(token);
+    }, 10000);
+}
+
+// Detener verificación de versión
+function stopVersionCheck() {
+    if (versionCheckInterval) {
+        clearInterval(versionCheckInterval);
+        versionCheckInterval = null;
+    }
+}
+
+// Mostrar modal de cambios en la encuesta
+function showSurveyChangedModal() {
+    const modal = document.createElement('div');
+    modal.id = 'survey-changed-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <h2 style="color: #e74c3c; margin-bottom: 20px;">⚠️ La encuesta ha sido modificada</h2>
+            <p style="margin-bottom: 25px; color: #555;">
+                El autor ha realizado cambios en esta encuesta. 
+                Para asegurar que estás respondiendo la versión más reciente, por favor recarga la página.
+            </p>
+            <button onclick="location.reload()" 
+                    style="background: #3498db; color: white; padding: 12px 30px; 
+                           border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                🔄 Recargar Página
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Bloquear el formulario
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
     }
 }
 
@@ -316,6 +400,12 @@ function showError(message) {
 // Enviar respuestas
 async function submitResponses(event) {
     event.preventDefault();
+    
+    // Verificar si la encuesta ha cambiado
+    if (surveyChanged) {
+        showError('⚠️ La encuesta ha sido modificada. Por favor, recarga la página para continuar.');
+        return;
+    }
     
     // Validar antes de enviar
     if (!surveyData) return;

@@ -61,16 +61,73 @@ router.get('/survey/:token', async (req, res) => {
       [link.id]
     );
 
+    // Generar hash de versión de la encuesta (basado en las preguntas y opciones)
+    const version = crypto.createHash('sha256')
+      .update(JSON.stringify(questionsRows))
+      .digest('hex');
+
     res.json({
       ok: true,
       encuesta: {
         id: link.id,
         titulo: link.titulo,
         preguntas: questionsRows
-      }
+      },
+      version: version
     });
   } catch (error) {
     console.error('Error obteniendo encuesta pública:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Obtener versión de la encuesta (para verificar cambios)
+router.get('/check-version/:token', async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    // Verificar que el token existe
+    const { rows: linkRows } = await query(
+      `SELECT e.id
+       FROM enlaces_encuesta le
+       JOIN encuestas e ON le.encuesta_id = e.id
+       WHERE le.token = $1 AND le.tipo = 'publico'`,
+      [token]
+    );
+
+    if (!linkRows.length) {
+      return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+    }
+
+    // Obtener preguntas con opciones para calcular el hash
+    const { rows: questionsRows } = await query(
+      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+              COALESCE(
+                json_agg(
+                  json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
+                  ORDER BY o.posicion
+                ) FILTER (WHERE o.id IS NOT NULL),
+                '[]'
+              ) as opciones
+       FROM preguntas p
+       LEFT JOIN opciones o ON p.id = o.pregunta_id
+       WHERE p.encuesta_id = $1
+       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion
+       ORDER BY p.posicion`,
+      [linkRows[0].id]
+    );
+
+    // Generar hash de versión
+    const version = crypto.createHash('sha256')
+      .update(JSON.stringify(questionsRows))
+      .digest('hex');
+
+    res.json({
+      ok: true,
+      version: version
+    });
+  } catch (error) {
+    console.error('Error verificando versión:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });
