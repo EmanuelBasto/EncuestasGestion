@@ -401,6 +401,14 @@ function markAsChanged() {
     }
 }
 
+// Función para verificar si hay cambios sin guardar antes de cerrar o cambiar de página
+function hasUnsavedChangesCheck() {
+    if (lastSavedData && checkForChanges()) {
+        return true;
+    }
+    return false;
+}
+
 // Función para verificar si hay cambios pendientes
 function hasChanges() {
     return hasUnsavedChanges;
@@ -969,7 +977,7 @@ function goToSurveys() {
 function goToResponses() {
     // Verificar si hay cambios pendientes
     if (lastSavedData && checkForChanges()) {
-        showError('Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña.');
+        showError('⚠️ Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña. Presiona el botón "💾 Guardar Encuesta" para continuar.');
         return;
     }
     
@@ -981,7 +989,7 @@ function goToResponses() {
 function goToShare() {
     // Verificar si hay cambios pendientes
     if (lastSavedData && checkForChanges()) {
-        showError('Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña.');
+        showError('⚠️ Tienes cambios sin guardar. Guarda la encuesta antes de cambiar de pestaña. Presiona el botón "💾 Guardar Encuesta" para continuar.');
         return;
     }
     
@@ -1023,8 +1031,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar botón de regreso
     const backBtn = document.getElementById('backToSurveysBtn');
     if (backBtn) {
-        backBtn.addEventListener('click', goToSurveys);
+        backBtn.addEventListener('click', () => {
+            if (hasUnsavedChangesCheck()) {
+                showError('⚠️ Tienes cambios sin guardar. Guarda la encuesta antes de salir. Presiona el botón "💾 Guardar Encuesta" para continuar.');
+                return;
+            }
+            goToSurveys();
+        });
     }
+    
+    // Configurar alerta antes de cerrar la página si hay cambios sin guardar
+    window.addEventListener('beforeunload', (e) => {
+        if (hasUnsavedChangesCheck()) {
+            e.preventDefault();
+            e.returnValue = '¿Seguro que quieres salir? Tienes cambios sin guardar.';
+            return e.returnValue;
+        }
+    });
 });
 
 // Inicializar drag and drop para preguntas
