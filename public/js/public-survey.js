@@ -344,8 +344,8 @@ function validateForm() {
     });
 
     const isValid = unansweredQuestions.length === 0 && invalidTextAnswers.length === 0;
-    document.getElementById('submitBtn').disabled = !isValid;
-
+    // El botón ahora siempre está habilitado - la validación se hace al enviar
+    
     // Mostrar mensajes de error si existen
     if (unansweredQuestions.length > 0 || invalidTextAnswers.length > 0) {
         let errorMessage = '';
@@ -410,84 +410,31 @@ async function submitResponses(event) {
     // Validar antes de enviar
     if (!surveyData) return;
 
-    const requiredQuestions = surveyData.preguntas.filter(q => q.obligatoria);
-    const unansweredRequired = [];
-    const invalidTextAnswers = [];
-
-    // Validar preguntas obligatorias
-    requiredQuestions.forEach(q => {
-        const response = responses[q.id];
-        
-        if (q.tipo === 'texto_abierto') {
-            if (!response || response.toString().trim() === '') {
-                unansweredRequired.push(q.enunciado);
-            } else if (response.length > 800) {
-                invalidTextAnswers.push(q.enunciado);
-            }
-        } else if (q.tipo === 'seleccion_multiple') {
-            if (!response || response.length === 0) {
-                unansweredRequired.push(q.enunciado);
-            }
-        } else if (q.tipo === 'seleccion_unica') {
-            if (!response || response.toString().trim() === '') {
-                unansweredRequired.push(q.enunciado);
-            }
-        }
-    });
-
-    // Validar también las respuestas de texto abierto no obligatorias
-    const textQuestions = surveyData.preguntas.filter(q => q.tipo === 'texto_abierto');
-    textQuestions.forEach(q => {
-        const response = responses[q.id];
-        if (response && response.toString().trim() !== '' && response.length > 800) {
-            invalidTextAnswers.push(q.enunciado);
-        }
-    });
-
-    // Mostrar errores si existen
-    if (unansweredRequired.length > 0 || invalidTextAnswers.length > 0) {
-        let errorMessage = '';
-        
-        if (unansweredRequired.length > 0) {
-            errorMessage += 'Preguntas obligatorias sin responder:\n• ' + unansweredRequired.join('\n• ');
-        }
-        
-        if (invalidTextAnswers.length > 0) {
-            if (errorMessage) errorMessage += '\n\n';
-            errorMessage += 'Respuestas muy largas (máximo 800 caracteres):\n• ' + invalidTextAnswers.join('\n• ');
-        }
-        
-        showError(errorMessage);
-        return; // No enviar si hay errores
-    }
-    
-    if (!surveyData) return;
-
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.textContent = '📤 Enviando...';
 
     try {
-        // Verificar que todas las preguntas tengan respuestas
-        const unansweredQuestions = [];
+        // Verificar que TODAS las preguntas tengan respuestas
+        const unansweredQuestions = []; // Guardar IDs en lugar de enunciados
         const invalidTextAnswers = [];
         
-        surveyData.preguntas.forEach(q => {
+        surveyData.preguntas.forEach((q, index) => {
             const response = responses[q.id];
             
             if (q.tipo === 'texto_abierto') {
                 if (!response || response.toString().trim() === '') {
-                    unansweredQuestions.push(q.enunciado);
+                    unansweredQuestions.push({ id: q.id, enunciado: q.enunciado, index: index });
                 } else if (response.length > 800) {
-                    invalidTextAnswers.push(q.enunciado);
+                    invalidTextAnswers.push({ id: q.id, enunciado: q.enunciado, index: index });
                 }
             } else if (q.tipo === 'seleccion_multiple') {
                 if (!response || response.length === 0) {
-                    unansweredQuestions.push(q.enunciado);
+                    unansweredQuestions.push({ id: q.id, enunciado: q.enunciado, index: index });
                 }
             } else if (q.tipo === 'seleccion_unica') {
                 if (!response || response.toString().trim() === '') {
-                    unansweredQuestions.push(q.enunciado);
+                    unansweredQuestions.push({ id: q.id, enunciado: q.enunciado, index: index });
                 }
             }
         });
@@ -497,12 +444,21 @@ async function submitResponses(event) {
             let errorMessage = '';
             
             if (unansweredQuestions.length > 0) {
-                errorMessage += 'Debes responder todas las preguntas:\n• ' + unansweredQuestions.join('\n• ');
+                // Usar el índice real de la pregunta
+                const firstUnanswered = unansweredQuestions[0];
+                const questionNumber = firstUnanswered.index + 1;
+                
+                errorMessage = `Se tienen que responder todas las preguntas.\n\nPregunta #${questionNumber} no respondida: "${firstUnanswered.enunciado}"`;
+                
+                // Si hay más preguntas sin responder, agregar mensaje
+                if (unansweredQuestions.length > 1) {
+                    errorMessage += `\n\nTambién hay ${unansweredQuestions.length - 1} ${unansweredQuestions.length - 1 === 1 ? 'pregunta más' : 'preguntas más'} sin responder.`;
+                }
             }
             
             if (invalidTextAnswers.length > 0) {
                 if (errorMessage) errorMessage += '\n\n';
-                errorMessage += 'Respuestas muy largas (máximo 800 caracteres):\n• ' + invalidTextAnswers.join('\n• ');
+                errorMessage += 'Respuestas muy largas (máximo 800 caracteres):\n• ' + invalidTextAnswers.map(q => q.enunciado).join('\n• ');
             }
             
             showError(errorMessage);

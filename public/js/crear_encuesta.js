@@ -540,23 +540,33 @@ async function duplicateQuestion(questionId) {
     const question = questions.find(q => q.id == questionId);
     if (!question) return;
 
-    const newEnunciado = `${question.enunciado} (copia)`;
+    // Duplicar el enunciado sin agregar "(copia)"
+    const newEnunciado = question.enunciado;
 
     try {
         const token = localStorage.getItem('token');
+        
+        // Preparar datos de la pregunta duplicada
+        const duplicatedData = {
+            encuesta_id: currentSurvey.id,
+            enunciado: newEnunciado,
+            tipo: question.tipo,
+            obligatoria: question.obligatoria,
+            opciones: question.opciones || []
+        };
+        
+        // Si es texto abierto, duplicar también respuesta_correcta
+        if (question.tipo === 'texto_abierto' && question.respuesta_correcta) {
+            duplicatedData.respuesta_correcta = question.respuesta_correcta;
+        }
+        
         const response = await fetch(`${API_BASE_URL}/questions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                encuesta_id: currentSurvey.id,
-                enunciado: newEnunciado,
-                tipo: question.tipo,
-                obligatoria: question.obligatoria,
-                opciones: question.opciones || []
-            })
+            body: JSON.stringify(duplicatedData)
         });
 
         const data = await response.json();
