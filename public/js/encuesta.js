@@ -26,7 +26,7 @@ function showError(message) {
     
     setTimeout(() => {
         errorDiv.remove();
-    }, 3000);
+    }, 2500);
 }
 
 function showSuccess(message) {
@@ -49,7 +49,7 @@ function showSuccess(message) {
     
     setTimeout(() => {
         successDiv.remove();
-    }, 3000);
+    }, 2500);
 }
 
 // Verificar autenticación

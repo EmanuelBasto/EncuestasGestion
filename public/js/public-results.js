@@ -54,7 +54,7 @@ async function loadPublicResults(token) {
             showError(data.message || 'Resultados no encontrados');
             setTimeout(() => {
                 window.location.href = '/';
-            }, 3000);
+            }, 2500);
         }
     } catch (error) {
         console.error('❌ Error cargando resultados:', error);
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showError('Token de resultados no válido');
         setTimeout(() => {
             window.location.href = '/';
-        }, 3000);
+        }, 2500);
         return;
     }
 

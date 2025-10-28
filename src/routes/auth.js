@@ -134,7 +134,8 @@ router.post(
       if (rows.length === 0) {
         return res.status(401).json({ 
           ok: false, 
-          message: 'Credenciales incorrectas' 
+          message: 'Correo incorrecto',
+          errorType: 'email' 
         });
       }
 
@@ -145,7 +146,8 @@ router.post(
       if (!match) {
         return res.status(401).json({ 
           ok: false, 
-          message: 'Credenciales incorrectas' 
+          message: 'Contraseña incorrecta',
+          errorType: 'password' 
         });
       }
 

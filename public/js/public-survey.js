@@ -77,7 +77,7 @@ async function loadPublicSurvey(token) {
             showError(data.message || 'Encuesta no encontrada');
             setTimeout(() => {
                 window.location.href = '/';
-            }, 3000);
+            }, 2500);
         }
     } catch (error) {
         console.error('Error cargando encuesta:', error);
@@ -591,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showError('Token de encuesta no válido');
         setTimeout(() => {
             window.location.href = '/';
-        }, 3000);
+        }, 2500);
         return;
     }
 

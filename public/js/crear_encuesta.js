@@ -31,7 +31,7 @@ function showError(message) {
     
     setTimeout(() => {
         errorDiv.remove();
-    }, 3000);
+    }, 2500);
 }
 
 function showSuccess(message) {
@@ -46,15 +46,35 @@ function showSuccess(message) {
         color: white;
         padding: 15px 20px;
         border-radius: 5px;
-        z-index: 1000;
+        z-index: 10001;
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease-out;
     `;
+    
+    // Añadir animación si no existe
+    if (!document.getElementById('success-animation')) {
+        const style = document.createElement('style');
+        style.id = 'success-animation';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     document.body.appendChild(successDiv);
     
     setTimeout(() => {
         successDiv.remove();
-    }, 3000);
+    }, 2500);
 }
 
 function showInfo(message) {
@@ -98,7 +118,7 @@ function showInfo(message) {
     
     setTimeout(() => {
         infoDiv.remove();
-    }, 3000);
+    }, 2500);
 }
 
 // Verificar autenticación
@@ -220,10 +240,6 @@ function renderQuestions() {
                 </div>
             </div>
             
-            <div class="icon-container-top">
-                <img class="move-handle" src="images/move.png" alt="icono mover" title="Arrastra para mover pregunta" draggable="false">
-            </div>
-            
             <div class="question-content">
                 ${renderQuestionContent(question)}
             </div>
@@ -268,14 +284,14 @@ function renderQuestionContent(question) {
         return `
             <div class="options">
                 ${options.map(option => `
-                    <div class="option" data-option-id="${option.id}">
-                        <input type="text" value="${option.texto}" placeholder="Opción" onchange="updateOption(${option.id}, this.value)">
-                        <button onclick="toggleCorrectAnswer(${option.id})" 
+                    <div class="option" data-option-id="${option.id || ''}">
+                        <input type="text" value="${option.texto}" placeholder="Opción" onchange="updateOption(${option.id || 'null'}, this.value)">
+                        <button onclick="toggleCorrectAnswer(${option.id || 'null'})" 
                                 class="correct-btn ${option.es_correcta ? 'correct' : ''}" 
                                 title="${option.es_correcta ? 'Quitar como correcta' : 'Marcar como correcta'}">
                             ${option.es_correcta ? '✅' : '⚪'}
                         </button>
-                        <button onclick="removeOption(${option.id})" class="remove-option">×</button>
+                        <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
                     </div>
                 `).join('')}
                 <div class="option add-option" onclick="addOption(${question.id})">
@@ -496,13 +512,26 @@ async function updateQuestionType(questionId, newType) {
     const question = questions.find(q => q.id == questionId);
     if (!question) return;
 
-    // Mostrar notificación si se cambia a selección única
-    if (newType === 'seleccion_unica' && question.tipo !== 'seleccion_unica') {
-        showSuccess('Selección única solo admite una respuesta correcta');
+    // Si se cambia a selección única desde selección múltiple
+    if (newType === 'seleccion_unica' && question.tipo === 'seleccion_multiple') {
+        // Verificar cuántas respuestas correctas hay
+        const correctAnswers = question.opciones ? question.opciones.filter(opt => opt.es_correcta) : [];
+        
+        if (correctAnswers.length > 1) {
+            // Desmarcar todas las opciones
+            question.opciones.forEach(option => {
+                option.es_correcta = false;
+            });
+            
+            // Mostrar notificación
+            showInfo('Selección única solo admite una respuesta correcta. Las opciones han sido desmarcadas. Por favor, selecciona la opción correcta.');
+        } else if (correctAnswers.length === 1) {
+            showSuccess('Selección única configurada correctamente');
+        }
     }
 
-    // Solo actualizar el tipo, sin tocar las opciones
-    await updateQuestion(questionId, { tipo: newType });
+    // Actualizar el tipo junto con las opciones para preservar el estado
+    await updateQuestion(questionId, { tipo: newType, opciones: question.opciones });
     renderQuestions();
 }
 
@@ -783,19 +812,68 @@ function toggleCorrectAnswerFromDOM(button) {
     
     // Actualizar el array local de preguntas
     const optionIndex = Array.from(questionSection.querySelectorAll('.option')).indexOf(optionDiv);
+    
+    // Si la opción ya existe en el array
     if (question.opciones && question.opciones[optionIndex]) {
         question.opciones[optionIndex].es_correcta = !isCorrect;
+    } else {
+        // Si la opción es nueva y no está en el array, agregarla
+        const input = optionDiv.querySelector('input[type="text"]');
+        if (input && input.value.trim()) {
+            if (!question.opciones) question.opciones = [];
+            question.opciones.push({ 
+                texto: input.value.trim(), 
+                es_correcta: !isCorrect,
+                id: null // Nueva opción sin ID
+            });
+        }
     }
+    
+    // Marcar como cambiado (requerirá guardar)
+    markAsChanged();
 }
 
 // Eliminar opción desde el DOM
-function removeOptionFromDOM(button) {
+async function removeOptionFromDOM(button) {
+    if (!confirm('¿Estás seguro que quieres eliminar esta opción?')) {
+        return;
+    }
+    
     const optionDiv = button.closest('.option');
+    const questionSection = optionDiv.closest('.survey-section');
+    const questionId = questionSection.dataset.questionId;
+    const question = questions.find(q => q.id == questionId);
+    
+    // Obtener información ANTES de remover del DOM
+    const input = optionDiv.querySelector('input[type="text"]');
+    const optionId = optionDiv.dataset.optionId;
+    
+    // Remover del DOM primero para que se vea inmediatamente
     optionDiv.remove();
+    
+    // Solo actualizar el array local (NO actualizar servidor aún)
+    if (optionId && question && question.opciones) {
+        // Si la opción tiene ID, remover del array local
+        question.opciones = question.opciones.filter(opt => opt.id != optionId);
+    } else if (input && input.value.trim() && question && question.opciones) {
+        // Si la opción no tiene ID, remover del array local buscando por texto
+        const texto = input.value.trim();
+        question.opciones = question.opciones.filter(opt => opt.texto !== texto);
+    }
+    
+    // Marcar como cambiado (requerirá guardar)
+    markAsChanged();
+    showSuccess('Opción eliminada. Recuerda guardar la encuesta.');
 }
 
 // Eliminar opción
-async function removeOption(optionId) {
+async function removeOption(optionId, skipConfirm = false) {
+    if (!skipConfirm) {
+        if (!confirm('¿Estás seguro que quieres eliminar esta opción?')) {
+            return;
+        }
+    }
+    
     const question = questions.find(q => q.opciones && q.opciones.some(o => o.id == optionId));
     if (!question) return;
 
@@ -803,6 +881,11 @@ async function removeOption(optionId) {
     
     try {
         await updateQuestion(question.id, { opciones: updatedOptions });
+        // Actualizar el array local
+        question.opciones = updatedOptions;
+        // Marcar como cambiado (requerirá guardar)
+        markAsChanged();
+        showSuccess('Opción eliminada. Recuerda guardar la encuesta.');
     } catch (error) {
         console.log('Error capturado en removeOption:', error);
         console.log('Mensaje de error:', error.message);
@@ -819,7 +902,11 @@ async function removeOption(optionId) {
             if (confirmDelete) {
                 try {
                     await updateQuestion(question.id, { opciones: updatedOptions, forceDelete: true });
-                    showSuccess('Opción eliminada correctamente (incluyendo respuestas asociadas)');
+                    // Actualizar el array local
+                    question.opciones = updatedOptions;
+                    // Marcar como cambiado
+                    markAsChanged();
+                    showSuccess('Opción eliminada. Recuerda guardar la encuesta.');
                 } catch (forceError) {
                     console.error('Error en eliminación forzada:', forceError);
                     showError('Error al eliminar la opción');
@@ -958,7 +1045,7 @@ async function saveSurvey() {
         showSuccess('¡Encuesta guardada exitosamente!');
         markAsSaved(); // Marcar como guardado
         saveCurrentState(); // Guardar el estado después de guardar
-        showSuccess('El link de la encuesta se ha actualizado correctamente.');
+        showSuccess('La encuesta se ha actualizado correctamente.');
         
     } catch (error) {
         console.error('Error guardando encuesta:', error);
@@ -1200,10 +1287,14 @@ async function reorderQuestions(draggedId, targetId) {
         });
         
         const data = await response.json();
+        console.log('📩 Respuesta del servidor:', data);
         
         if (data.ok) {
             console.log('✅ Orden guardado exitosamente en el servidor');
             saveCurrentState(); // Actualizar el estado guardado
+            console.log('🔔 Mostrando notificación...');
+            showSuccess('Posiciones de las preguntas guardadas');
+            console.log('✅ Notificación mostrada');
         } else {
             console.error('❌ Error guardando el orden:', data);
             showError('Error al actualizar el orden de las preguntas');

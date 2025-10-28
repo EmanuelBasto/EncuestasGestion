@@ -11,6 +11,7 @@ header {
     font-size: 2.5em;
     font-weight: 500;
     letter-spacing: 1px;
+    position: relative;
 }
 main {
     padding: 40px;
@@ -41,4 +42,24 @@ main {
 
 .boton-encuesta:hover {
     transform: scale(1.05);
+}
+
+/* Estilos para el botón de cerrar sesión */
+.logout-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.logout-btn:hover {
+    background-color: #c82333;
 }

@@ -54,7 +54,7 @@ function showSuccess(message) {
     
     setTimeout(() => {
         successDiv.remove();
-    }, 3000);
+    }, 2500);
 }
 
 // Funcionalidad de mostrar/ocultar contraseña
@@ -163,7 +163,14 @@ function setupLoginForm() {
                         window.location.href = 'encuesta.html'; // O la página principal
                     }, 1000);
                 } else {
-                    showError('passwordError', data.message || 'Credenciales incorrectas');
+                    // Mostrar error específico según el tipo
+                    if (data.errorType === 'email') {
+                        showError('emailError', data.message || 'Correo incorrecto');
+                    } else if (data.errorType === 'password') {
+                        showError('passwordError', data.message || 'Contraseña incorrecta');
+                    } else {
+                        showError('passwordError', data.message || 'Error al iniciar sesión');
+                    }
                 }
             } catch (error) {
                 console.error('Error en login:', error);
@@ -320,7 +327,7 @@ function setupRegisterForm() {
                     
                     // Redirigir después de un momento
                     setTimeout(() => {
-                        window.location.href = '/encuesta'; // O la página principal
+                        window.location.href = 'index.html';
                     }, 1000);
                 } else {
                     if (data.errors && data.errors.length > 0) {
