@@ -269,6 +269,13 @@ function renderQuestions() {
     // Agregar event listeners para edición
     addQuestionEventListeners();
     
+    // Actualizar visibilidad de botones "Añadir opción" según número de opciones
+    document.querySelectorAll('.survey-section').forEach(section => {
+        if (section.dataset.questionId) {
+            updateAddOptionButtonVisibility(section);
+        }
+    });
+    
     // Agregar funcionalidad de drag and drop
     initializeDragAndDrop();
 }
@@ -282,10 +289,10 @@ function renderQuestionContent(question) {
             <div class="text-input-container">
                 <label class="correct-answer-label">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span>Ejemplo de respuesta correcta:</span>
+                        <span>(Opcional) Sugerencia de respuesta:</span>
                         <span class="option-char-counter" style="font-size: 0.75em; color: #666; white-space: nowrap;">${respuestaCorrectaLen}/800</span>
                     </div>
-                    <textarea placeholder="Ingresa un ejemplo de respuesta correcta..." 
+                    <textarea placeholder=" " 
                                maxlength="800"
                                oninput="updateCharCounter(this, 800); autoResize(this);"
                                onchange="updateCorrectAnswer(${question.id}, this.value)"
@@ -295,7 +302,14 @@ function renderQuestionContent(question) {
             </div>
         `;
     } else {
-        const options = question.opciones || [];
+        let options = question.opciones || [];
+        // Asegurar que haya al menos 2 opciones para preguntas de selección
+        if (options.length < 2) {
+            options = [
+                { texto: 'Opción 1', es_correcta: false },
+                { texto: 'Opción 2', es_correcta: false }
+            ];
+        }
         const inputType = question.tipo === 'seleccion_unica' ? 'radio' : 'checkbox';
         const inputClass = question.tipo === 'seleccion_unica' ? 'correct-radio' : 'correct-checkbox';
         return `
@@ -320,7 +334,7 @@ function renderQuestionContent(question) {
                         <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
                     </div>
                 `).join('')}
-                <div class="option add-option" onclick="addOption(${question.id})">
+                <div class="option add-option" onclick="addOption(${question.id})" style="${options.length >= 4 ? 'display: none;' : ''}">
                     <span>Añadir opción</span>
                 </div>
             </div>
@@ -484,6 +498,8 @@ function markAsSaved() {
 }
 
 // Actualizar pregunta
+// NOTA: Esta función se llama automáticamente cuando se hacen cambios (guardado automático)
+// NO envía notificación a la página pública - solo actualiza en el servidor
 async function updateQuestion(questionId, updates) {
     // Actualizar el array local primero
     const questionIndex = questions.findIndex(q => q.id == questionId);
@@ -560,21 +576,34 @@ async function updateQuestionType(questionId, newType) {
     const question = questions.find(q => q.id == questionId);
     if (!question) return;
 
-    // Si se cambia a selección única desde selección múltiple
-    if (newType === 'seleccion_unica' && question.tipo === 'seleccion_multiple') {
-        // Verificar cuántas respuestas correctas hay
-        const correctAnswers = question.opciones ? question.opciones.filter(opt => opt.es_correcta) : [];
+    // Si se cambia a tipo selección (única o múltiple)
+    if (newType === 'seleccion_unica' || newType === 'seleccion_multiple') {
+        // Verificar que las opciones válidas sean al menos 2
+        const validOptions = (question.opciones || []).filter(opt => opt.texto && opt.texto.trim());
+        if (validOptions.length < 2) {
+            // Asegurar que haya al menos 2 opciones
+            question.opciones = [
+                { texto: 'Opción 1', es_correcta: false },
+                { texto: 'Opción 2', es_correcta: false }
+            ];
+        }
         
-        if (correctAnswers.length > 1) {
-            // Desmarcar todas las opciones
-            question.opciones.forEach(option => {
-                option.es_correcta = false;
-            });
+        // Si se cambia a selección única desde selección múltiple
+        if (newType === 'seleccion_unica' && question.tipo === 'seleccion_multiple') {
+            // Verificar cuántas respuestas correctas hay
+            const correctAnswers = question.opciones.filter(opt => opt.es_correcta);
             
-            // Mostrar notificación
-            showInfo('Selección única solo admite una respuesta correcta. Las opciones han sido desmarcadas. Por favor, selecciona la opción correcta.');
-        } else if (correctAnswers.length === 1) {
-            showSuccess('Selección única configurada correctamente');
+            if (correctAnswers.length > 1) {
+                // Desmarcar todas las opciones
+                question.opciones.forEach(option => {
+                    option.es_correcta = false;
+                });
+                
+                // Mostrar notificación
+                showInfo('Selección única solo admite una respuesta correcta. Las opciones han sido desmarcadas. Por favor, selecciona la opción correcta.');
+            } else if (correctAnswers.length === 1) {
+                showSuccess('Selección única configurada correctamente');
+            }
         }
     }
 
@@ -669,8 +698,24 @@ function addOption(questionId) {
     const question = questions.find(q => q.id == questionId);
     if (!question) return;
 
-    // Crear un nuevo campo de opción directamente en el DOM
+    // Verificar que la pregunta sea de selección (única o múltiple)
     const questionSection = document.querySelector(`[data-question-id="${questionId}"]`);
+    const tipoSelect = questionSection.querySelector('[data-field="tipo"]');
+    if (!tipoSelect) return;
+    
+    const tipo = tipoSelect.value;
+    if (tipo !== 'seleccion_unica' && tipo !== 'seleccion_multiple') return;
+    
+    // Contar TODAS las opciones (incluidas las vacías) en el DOM
+    const currentOptions = questionSection.querySelectorAll('.option:not(.add-option)');
+    const totalOptionsCount = currentOptions.length;
+    
+    // Validar que no se puedan tener más de 4 opciones
+    if (totalOptionsCount >= 4) {
+        showError('Las preguntas de selección pueden tener máximo 4 opciones');
+        return;
+    }
+    
     const optionsContainer = questionSection.querySelector('.options');
     
     // Crear el nuevo elemento de opción
@@ -696,6 +741,9 @@ function addOption(questionId) {
     const addOptionDiv = optionsContainer.querySelector('.add-option');
     optionsContainer.insertBefore(newOptionDiv, addOptionDiv);
     
+    // Actualizar visibilidad del botón "Añadir opción" si ya hay 4 opciones
+    updateAddOptionButtonVisibility(questionSection);
+    
     // Enfocar el campo de texto
     const input = newOptionDiv.querySelector('input');
     input.focus();
@@ -712,8 +760,9 @@ function addOption(questionId) {
             await updateQuestion(questionId, { opciones: question.opciones });
             renderQuestions();
         } else {
-            // Si está vacío, remover el elemento
+            // Si está vacío, remover el elemento y actualizar visibilidad del botón
             newOptionDiv.remove();
+            updateAddOptionButtonVisibility(questionSection);
         }
     });
     
@@ -723,6 +772,36 @@ function addOption(questionId) {
             this.blur();
         }
     });
+}
+
+// Actualizar visibilidad del botón "Añadir opción" basado en el número de opciones
+function updateAddOptionButtonVisibility(questionSection) {
+    const tipoSelect = questionSection.querySelector('[data-field="tipo"]');
+    if (!tipoSelect) return;
+    
+    const tipo = tipoSelect.value;
+    if (tipo !== 'seleccion_unica' && tipo !== 'seleccion_multiple') {
+        // Mostrar el botón para texto abierto
+        const addOptionDiv = questionSection.querySelector('.add-option');
+        if (addOptionDiv) {
+            addOptionDiv.style.display = '';
+        }
+        return;
+    }
+    
+    // Contar TODAS las opciones (incluidas las vacías) en el DOM
+    const currentOptions = questionSection.querySelectorAll('.option:not(.add-option)');
+    const totalOptionsCount = currentOptions.length;
+    
+    // Ocultar el botón si hay 4 o más opciones (contando todas, incluso vacías)
+    const addOptionDiv = questionSection.querySelector('.add-option');
+    if (addOptionDiv) {
+        if (totalOptionsCount >= 4) {
+            addOptionDiv.style.display = 'none';
+        } else {
+            addOptionDiv.style.display = '';
+        }
+    }
 }
 
 // Actualizar opción
@@ -738,6 +817,12 @@ async function updateOption(optionId, newText) {
 
     // Actualizar en el array local
     question.opciones = updatedOptions;
+    
+    // Actualizar visibilidad del botón "Añadir opción"
+    const questionSection = document.querySelector(`[data-question-id="${question.id}"]`);
+    if (questionSection) {
+        updateAddOptionButtonVisibility(questionSection);
+    }
     
     // No hacer renderQuestions() para evitar perder el foco del input
     // Solo actualizar en el servidor
@@ -933,14 +1018,39 @@ function toggleCorrectAnswerFromDOM(checkbox) {
 
 // Eliminar opción desde el DOM
 async function removeOptionFromDOM(button) {
-    if (!confirm('¿Estás seguro que quieres eliminar esta opción?')) {
-        return;
-    }
-    
     const optionDiv = button.closest('.option');
     const questionSection = optionDiv.closest('.survey-section');
     const questionId = questionSection.dataset.questionId;
     const question = questions.find(q => q.id == questionId);
+    
+    // Verificar que la pregunta sea de selección (única o múltiple)
+    const tipoSelect = questionSection.querySelector('[data-field="tipo"]');
+    if (tipoSelect) {
+        const tipo = tipoSelect.value;
+        if (tipo === 'seleccion_unica' || tipo === 'seleccion_multiple') {
+            // Contar cuántas opciones hay actualmente
+            const currentOptions = questionSection.querySelectorAll('.option:not(.add-option)');
+            
+            // Contar solo las opciones que tienen texto válido
+            let validOptionsCount = 0;
+            currentOptions.forEach(opt => {
+                const textInput = opt.querySelector('input[type="text"]');
+                if (textInput && textInput.value.trim()) {
+                    validOptionsCount++;
+                }
+            });
+            
+            // Si hay exactamente 2 opciones válidas, no permitir eliminar ninguna
+            if (validOptionsCount <= 2) {
+                showError('Las preguntas de selección deben tener al menos 2 opciones');
+                return;
+            }
+        }
+    }
+    
+    if (!confirm('¿Estás seguro que quieres eliminar esta opción?')) {
+        return;
+    }
     
     // Obtener información ANTES de remover del DOM
     const input = optionDiv.querySelector('input[type="text"]');
@@ -959,6 +1069,9 @@ async function removeOptionFromDOM(button) {
         question.opciones = question.opciones.filter(opt => opt.texto !== texto);
     }
     
+    // Actualizar visibilidad del botón "Añadir opción" (mostrar si ahora hay menos de 4)
+    updateAddOptionButtonVisibility(questionSection);
+    
     // Marcar como cambiado (requerirá guardar)
     markAsChanged();
     showSuccess('Opción eliminada. Recuerda guardar la encuesta.');
@@ -966,14 +1079,25 @@ async function removeOptionFromDOM(button) {
 
 // Eliminar opción
 async function removeOption(optionId, skipConfirm = false) {
+    const question = questions.find(q => q.opciones && q.opciones.some(o => o.id == optionId));
+    if (!question) return;
+
+    // Verificar que la pregunta sea de selección y tenga más de 2 opciones
+    // Si tiene exactamente 2, no permitir eliminar ninguna
+    if (question.tipo === 'seleccion_unica' || question.tipo === 'seleccion_multiple') {
+        // Contar opciones válidas (con texto)
+        const validOptions = question.opciones.filter(opt => opt.texto && opt.texto.trim());
+        if (validOptions.length <= 2) {
+            showError('Las preguntas de selección deben tener al menos 2 opciones');
+            return;
+        }
+    }
+
     if (!skipConfirm) {
         if (!confirm('¿Estás seguro que quieres eliminar esta opción?')) {
             return;
         }
     }
-    
-    const question = questions.find(q => q.opciones && q.opciones.some(o => o.id == optionId));
-    if (!question) return;
 
     const updatedOptions = question.opciones.filter(option => option.id != optionId);
     
@@ -1130,6 +1254,22 @@ async function saveSurvey() {
                         id: optionData ? optionData.id : null
                     };
                 }).filter(option => option.texto !== '');
+                
+                // Validar que las preguntas de selección tengan al menos 2 opciones
+                if (opciones.length < 2) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = originalText;
+                    showError(`La pregunta "${enunciado}" debe tener al menos 2 opciones. Actualmente tiene ${opciones.length} opción(es).`);
+                    return;
+                }
+                
+                // Validar que las preguntas de selección no tengan más de 4 opciones
+                if (opciones.length > 4) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = originalText;
+                    showError(`La pregunta "${enunciado}" puede tener máximo 4 opciones. Actualmente tiene ${opciones.length} opciones.`);
+                    return;
+                }
             }
 
             console.log(`Guardando pregunta ${question.id} en posición ${question.posicion}:`, { enunciado, tipo });
@@ -1172,12 +1312,59 @@ async function saveSurvey() {
         if (!reorderData.ok) {
             console.error('Error guardando el orden:', reorderData);
             showError('Error al guardar el orden de las preguntas: ' + reorderData.message);
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
             return;
         }
 
+        // Solo si TODO se guardó exitosamente, marcar como guardado y notificar
         markAsSaved(); // Marcar como guardado
         saveCurrentState(); // Guardar el estado después de guardar
+        
+        // Actualizar la versión confirmada (esto hace que check-version detecte cambios solo después de guardar)
+        try {
+            await fetch(`${API_BASE_URL}/surveys/${currentSurvey.id}/confirm-version`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            console.log('✅ Versión confirmada actualizada');
+        } catch (error) {
+            console.error('Error actualizando versión confirmada:', error);
+            // Continuar aunque falle
+        }
+        
         showSuccess('¡Encuesta guardada exitosamente!');
+        
+        // Notificar a las páginas públicas abiertas que la encuesta fue modificada
+        // SOLO cuando se presiona "Guardar Encuesta" y TODO se guardó exitosamente
+        try {
+            const channelName = `survey_updates_${currentSurvey.id}`;
+            console.log(`📢 [Guardar Encuesta] Enviando notificación de actualización para encuesta ${currentSurvey.id}`);
+            const channel = new BroadcastChannel(channelName);
+            const message = { 
+                type: 'survey_updated', 
+                surveyId: currentSurvey.id,
+                timestamp: Date.now(),
+                source: 'save_button' // Identificar que viene del botón "Guardar Encuesta"
+            };
+            channel.postMessage(message);
+            console.log('✅ [Guardar Encuesta] Mensaje enviado exitosamente:', message);
+            // Cerrar el canal después de un pequeño delay para asegurar que el mensaje se envió
+            setTimeout(() => {
+                channel.close();
+            }, 100);
+        } catch (error) {
+            console.error('Error notificando actualización:', error);
+            // Fallback a localStorage si BroadcastChannel no está disponible
+            const updateKey = `survey_updated_${currentSurvey.id}_${Date.now()}`;
+            localStorage.setItem(updateKey, 'true');
+            console.log('📢 [Guardar Encuesta] Usando fallback de localStorage:', updateKey);
+            setTimeout(() => {
+                localStorage.removeItem(updateKey);
+            }, 5000);
+        }
         
     } catch (error) {
         console.error('Error guardando encuesta:', error);

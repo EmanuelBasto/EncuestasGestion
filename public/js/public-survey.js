@@ -73,6 +73,10 @@ async function loadPublicSurvey(token) {
             surveyVersion = data.version; // Guardar la versión inicial
             renderSurvey();
             startVersionCheck(token); // Iniciar verificación periódica
+            
+            // Configurar listener para cambios inmediatos mediante localStorage
+            // Esto detecta cambios cuando el autor guarda la encuesta en otra pestaña
+            setupStorageListener();
         } else {
             showError(data.message || 'Encuesta no encontrada');
             setTimeout(() => {
@@ -578,6 +582,50 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar envío del formulario
     document.getElementById('surveyForm').addEventListener('submit', submitResponses);
 });
+
+// Variable global para mantener el canal abierto
+let surveyBroadcastChannel = null;
+
+// Configurar listener para cambios en la encuesta
+function setupStorageListener() {
+    if (!surveyData) return;
+    
+    // Usar BroadcastChannel para comunicación directa entre pestañas
+    try {
+        surveyBroadcastChannel = new BroadcastChannel(`survey_updates_${surveyData.id}`);
+        surveyBroadcastChannel.onmessage = (event) => {
+            console.log('📨 Mensaje recibido en BroadcastChannel:', event.data);
+            if (event.data && event.data.type === 'survey_updated') {
+                // Comparar IDs como strings para evitar problemas de tipos
+                const receivedSurveyId = String(event.data.surveyId);
+                const currentSurveyId = String(surveyData.id);
+                console.log(`🔍 Comparando IDs: recibido=${receivedSurveyId}, actual=${currentSurveyId}`);
+                if (receivedSurveyId === currentSurveyId) {
+                    console.log('⚠️ Encuesta actualizada detectada mediante BroadcastChannel');
+                    surveyChanged = true;
+                    showSurveyChangedModal();
+                    stopVersionCheck(); // Dejar de verificar
+                }
+            }
+        };
+        console.log(`🔊 Escuchando actualizaciones de encuesta ${surveyData.id} mediante BroadcastChannel`);
+    } catch (error) {
+        console.error('Error configurando BroadcastChannel:', error);
+    }
+    
+    // Fallback: Escuchar cambios en localStorage para navegadores que no soportan BroadcastChannel
+    window.addEventListener('storage', (e) => {
+        if (!e.key || !e.newValue) return;
+        
+        // Si la encuesta ya se cargó y hay un evento de actualización
+        if (surveyData && e.key.startsWith(`survey_updated_${surveyData.id}_`)) {
+            console.log('⚠️ Encuesta actualizada detectada mediante localStorage');
+            surveyChanged = true;
+            showSurveyChangedModal();
+            stopVersionCheck(); // Dejar de verificar
+        }
+    });
+}
 
 // Función para ajustar automáticamente la altura del textarea
 function autoResize(textarea) {

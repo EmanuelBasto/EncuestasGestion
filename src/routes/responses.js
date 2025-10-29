@@ -61,10 +61,36 @@ router.get('/survey/:token', async (req, res) => {
       [link.id]
     );
 
-    // Generar hash de versión de la encuesta (basado en las preguntas y opciones)
-    const version = crypto.createHash('sha256')
-      .update(JSON.stringify(questionsRows))
-      .digest('hex');
+    // Obtener versión confirmada si existe, sino calcular dinámicamente
+    const { rows: surveyRows } = await query(
+      `SELECT version_confirmada FROM encuestas WHERE id = $1`,
+      [link.id]
+    );
+
+    let version;
+    if (surveyRows.length && surveyRows[0].version_confirmada) {
+      // Usar versión confirmada si existe
+      version = surveyRows[0].version_confirmada;
+    } else {
+      // Si no hay versión confirmada, calcular dinámicamente e inicializar
+      version = crypto.createHash('sha256')
+        .update(JSON.stringify(questionsRows))
+        .digest('hex');
+      
+      // Inicializar version_confirmada si no existe
+      try {
+        await query(
+          `ALTER TABLE encuestas ADD COLUMN IF NOT EXISTS version_confirmada TEXT`
+        );
+        await query(
+          `UPDATE encuestas SET version_confirmada = $1 WHERE id = $2`,
+          [version, link.id]
+        );
+      } catch (error) {
+        // Si falla, continuar sin inicializar
+        console.log('Nota: No se pudo inicializar version_confirmada:', error.message);
+      }
+    }
 
     res.json({
       ok: true,
@@ -117,14 +143,27 @@ router.get('/check-version/:token', async (req, res) => {
       [linkRows[0].id]
     );
 
-    // Generar hash de versión
-    const version = crypto.createHash('sha256')
-      .update(JSON.stringify(questionsRows))
-      .digest('hex');
+    // Comparar hash actual con versión confirmada almacenada
+    // Si existe version_confirmada, usar esa; sino, calcular dinámicamente
+    const { rows: surveyRows } = await query(
+      `SELECT version_confirmada FROM encuestas WHERE id = $1`,
+      [linkRows[0].id]
+    );
+
+    let versionToCompare;
+    if (surveyRows.length && surveyRows[0].version_confirmada) {
+      // Usar la versión confirmada almacenada (solo se actualiza cuando se presiona "Guardar Encuesta")
+      versionToCompare = surveyRows[0].version_confirmada;
+    } else {
+      // Si no hay versión confirmada, calcular dinámicamente (comportamiento original)
+      versionToCompare = crypto.createHash('sha256')
+        .update(JSON.stringify(questionsRows))
+        .digest('hex');
+    }
 
     res.json({
       ok: true,
-      version: version
+      version: versionToCompare
     });
   } catch (error) {
     console.error('Error verificando versión:', error);

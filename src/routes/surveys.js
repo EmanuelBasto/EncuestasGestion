@@ -239,6 +239,73 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Actualizar versión confirmada de la encuesta (para notificar cambios solo cuando se guarda)
+router.post('/:id/confirm-version', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar que la encuesta pertenece al usuario
+    const { rows: surveyRows } = await query(
+      'SELECT * FROM encuestas WHERE id = $1 AND propietario_id = $2',
+      [id, req.user.id]
+    );
+
+    if (!surveyRows.length) {
+      return res.status(404).json({ ok: false, message: 'Encuesta no encontrada' });
+    }
+
+    // Obtener preguntas con opciones para calcular el hash
+    const { rows: questionsRows } = await query(
+      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+              COALESCE(
+                json_agg(
+                  json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
+                  ORDER BY o.posicion
+                ) FILTER (WHERE o.id IS NOT NULL),
+                '[]'
+              ) as opciones
+       FROM preguntas p
+       LEFT JOIN opciones o ON p.id = o.pregunta_id
+       WHERE p.encuesta_id = $1
+       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion
+       ORDER BY p.posicion`,
+      [id]
+    );
+
+    // Generar hash de versión
+    const version = crypto.createHash('sha256')
+      .update(JSON.stringify(questionsRows))
+      .digest('hex');
+
+    // Intentar agregar columna version_confirmada si no existe
+    try {
+      await query(
+        `ALTER TABLE encuestas ADD COLUMN IF NOT EXISTS version_confirmada TEXT`
+      );
+    } catch (error) {
+      // Si falla, continuar (la columna ya existe o no se puede agregar)
+      console.log('Nota: No se pudo agregar columna version_confirmada:', error.message);
+    }
+
+    // Actualizar la versión confirmada en la tabla encuestas
+    await query(
+      `UPDATE encuestas 
+       SET version_confirmada = $1
+       WHERE id = $2`,
+      [version, id]
+    );
+    
+    res.json({
+      ok: true,
+      version: version,
+      message: 'Versión confirmada actualizada'
+    });
+  } catch (error) {
+    console.error('Error confirmando versión:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
 // Obtener estadísticas de una encuesta
 router.get('/:id/stats', requireAuth, async (req, res) => {
   const { id } = req.params;
