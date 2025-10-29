@@ -171,9 +171,14 @@ function renderSurvey() {
     // Actualizar título
     document.getElementById('surveyTitle').textContent = surveyData.titulo;
 
+    // Ordenar preguntas por posición antes de renderizar
+    const sortedQuestions = [...surveyData.preguntas].sort((a, b) => (a.posicion || 0) - (b.posicion || 0));
+    
+    console.log('📋 Preguntas ordenadas para renderizar:', sortedQuestions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+
     // Renderizar preguntas
     const questionsContainer = document.getElementById('questionsContainer');
-    questionsContainer.innerHTML = surveyData.preguntas.map((question, index) => 
+    questionsContainer.innerHTML = sortedQuestions.map((question, index) => 
         renderQuestion(question, index)
     ).join('');
 
@@ -253,9 +258,10 @@ function renderTextInput(question) {
             <textarea name="question_${question.id}" 
                       placeholder="Escribe tu respuesta aquí (máximo 800 caracteres)..."
                       onchange="updateResponse(${question.id}, this.value)"
-                      oninput="validateTextLength(this, ${question.id})"
-                      rows="4"
-                      maxlength="800"></textarea>
+                      oninput="validateTextLength(this, ${question.id}); autoResize(this);"
+                      rows="6"
+                      maxlength="800"
+                      style="min-height: 150px; resize: none; overflow-y: hidden;"></textarea>
             <div class="char-counter" id="char-counter-${question.id}">
                 <span class="char-count">0</span> / 800 caracteres
             </div>
@@ -572,3 +578,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar envío del formulario
     document.getElementById('surveyForm').addEventListener('submit', submitResponses);
 });
+
+// Función para ajustar automáticamente la altura del textarea
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.max(150, textarea.scrollHeight) + 'px';
+}

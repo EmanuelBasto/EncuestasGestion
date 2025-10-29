@@ -131,9 +131,7 @@ function renderSurveys() {
         <div class="survey-card" data-id="${encuesta.id}">
             <div class="survey-header">
                 <h3>${encuesta.titulo}</h3>
-                <div class="survey-status ${encuesta.activa ? 'active' : 'inactive'}">
-                    ${encuesta.activa ? 'Activa' : 'Inactiva'}
-                </div>
+                
             </div>
             <div class="survey-stats">
                 <span>📝 ${encuesta.total_preguntas} preguntas</span>

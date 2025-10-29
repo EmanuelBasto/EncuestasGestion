@@ -153,6 +153,15 @@ nav ul li:hover {
     font-size: 1.3rem;
     flex: 1;
     margin-right: 15px;
+    padding: 8px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.survey-section h2:focus {
+    border-color: #000000;
 }
 
 .question-type select {
@@ -492,17 +501,23 @@ hr {
 }
 
 .correct-answer-input {
-    padding: 10px;
-    border: 1px solid #ced4da;
-    border-radius: 5px;
-    font-size: 14px;
-    transition: border-color 0.2s;
+    width: 100%;
+    padding: 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    min-height: 150px;
+    resize: vertical;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    background-color: white;
 }
 
 .correct-answer-input:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
 /* Mejorar el layout de las opciones */

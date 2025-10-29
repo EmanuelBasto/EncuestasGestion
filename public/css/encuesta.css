@@ -63,3 +63,161 @@ main {
 .logout-btn:hover {
     background-color: #c82333;
 }
+
+/* Estilos para las tarjetas de encuesta */
+.surveys-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.survey-card {
+    background-color: white;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.survey-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Header con título y estado */
+.survey-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.survey-header h3 {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 0 0 15px 0;
+    text-align: center;
+}
+
+.survey-status {
+    font-size: 1em;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 20px;
+    width: fit-content;
+}
+
+.survey-status.active {
+    background-color: #27ae60;
+    color: white;
+}
+
+.survey-status.inactive {
+    background-color: #e74c3c;
+    color: white;
+}
+
+/* Estadísticas */
+.survey-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.survey-stats span {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95em;
+    color: #2c3e50;
+}
+
+.survey-stats span::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+}
+
+/* Botones de acción */
+.survey-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.survey-actions button {
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #2c3e50;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.survey-actions button:hover {
+    background-color: #007bff;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-edit {
+    order: 1;
+}
+
+.btn-results {
+    order: 2;
+}
+
+.btn-share {
+    order: 3;
+}
+
+.btn-delete {
+    order: 4;
+}
+
+.btn-delete:hover {
+    background-color: #e74c3c !important;
+    color: white !important;
+}
+
+/* Sección de creación */
+.create-section {
+    text-align: center;
+    padding: 40px;
+    margin-bottom: 30px;
+}
+
+.create-section p {
+    margin: 15px 0;
+    color: #2c3e50;
+}
+
+/* No surveys message */
+.no-surveys {
+    text-align: center;
+    padding: 60px 20px;
+    color: #7f8c8d;
+}
+
+.no-surveys p {
+    font-size: 1.1em;
+    margin: 10px 0;
+}
+
+.surveys-section h3 {
+    font-size: 1.5em;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}

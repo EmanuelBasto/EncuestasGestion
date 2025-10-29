@@ -220,6 +220,11 @@ function renderQuestions() {
     const questionsContainer = document.querySelector('.survey-column');
     if (!questionsContainer) return;
 
+    // Asegurar que las preguntas estén ordenadas por posición
+    questions.sort((a, b) => (a.posicion || 0) - (b.posicion || 0));
+    
+    console.log('📋 Renderizando preguntas en orden:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+
     // Limpiar el contenedor primero
     questionsContainer.innerHTML = '';
     
@@ -230,7 +235,10 @@ function renderQuestions() {
         questionElement.setAttribute('data-question-id', question.id);
         questionElement.innerHTML = `
             <div class="question-header">
-                <h2 contenteditable="true" data-field="enunciado">${question.enunciado}</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2 contenteditable="true" data-field="enunciado" style="flex: 1;">${question.enunciado}</h2>
+                    <span class="char-counter" style="margin-left: 10px; font-size: 0.8em; color: #666; white-space: nowrap;">${question.enunciado.length}/500</span>
+                </div>
                 <div class="question-type">
                     <select data-field="tipo">
                         <option value="seleccion_unica" ${question.tipo === 'seleccion_unica' ? 'selected' : ''}>Selección única</option>
@@ -268,14 +276,21 @@ function renderQuestions() {
 // Renderizar contenido de pregunta según tipo
 function renderQuestionContent(question) {
     if (question.tipo === 'texto_abierto') {
+        const respuestaCorrecta = question.respuesta_correcta || '';
+        const respuestaCorrectaLen = respuestaCorrecta.length;
         return `
             <div class="text-input-container">
                 <label class="correct-answer-label">
-                    <span>Ejemplo de respuesta correcta:</span>
-                    <input type="text" placeholder="Ingresa un ejemplo de respuesta correcta..." 
-                           value="${question.respuesta_correcta || ''}" 
-                           onchange="updateCorrectAnswer(${question.id}, this.value)"
-                           class="correct-answer-input">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span>Ejemplo de respuesta correcta:</span>
+                        <span class="option-char-counter" style="font-size: 0.75em; color: #666; white-space: nowrap;">${respuestaCorrectaLen}/300</span>
+                    </div>
+                    <textarea placeholder="Ingresa un ejemplo de respuesta correcta..." 
+                               maxlength="300"
+                               oninput="updateCharCounter(this, 300); autoResize(this);"
+                               onchange="updateCorrectAnswer(${question.id}, this.value)"
+                               class="correct-answer-input"
+                               style="min-height: 150px; resize: vertical; overflow-y: hidden;">${respuestaCorrecta}</textarea>
                 </label>
             </div>
         `;
@@ -285,7 +300,14 @@ function renderQuestionContent(question) {
             <div class="options">
                 ${options.map(option => `
                     <div class="option" data-option-id="${option.id || ''}">
-                        <input type="text" value="${option.texto}" placeholder="Opción" onchange="updateOption(${option.id || 'null'}, this.value)">
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <input type="text" value="${option.texto}" placeholder="Opción" 
+                                   maxlength="300" 
+                                   oninput="updateCharCounter(this, 300)"
+                                   onchange="updateOption(${option.id || 'null'}, this.value)"
+                                   style="flex: 1;">
+                            <span class="option-char-counter" style="margin-left: 8px; font-size: 0.75em; color: #666; white-space: nowrap;">${(option.texto || '').length}/300</span>
+                        </div>
                         <button onclick="toggleCorrectAnswer(${option.id || 'null'})" 
                                 class="correct-btn ${option.es_correcta ? 'correct' : ''}" 
                                 title="${option.es_correcta ? 'Quitar como correcta' : 'Marcar como correcta'}">
@@ -306,6 +328,28 @@ function renderQuestionContent(question) {
 function addQuestionEventListeners() {
     // Event listeners para campos editables
     document.querySelectorAll('[contenteditable="true"]').forEach(element => {
+        // Limitar caracteres a 500 y actualizar contador
+        element.addEventListener('input', function() {
+            if (this.textContent.length > 500) {
+                this.textContent = this.textContent.substring(0, 500);
+            }
+            
+            // Actualizar contador de caracteres
+            const counter = this.nextElementSibling;
+            if (counter && counter.classList.contains('char-counter')) {
+                counter.textContent = `${this.textContent.length}/500`;
+                
+                // Cambiar color si está cerca del límite
+                if (this.textContent.length > 450) {
+                    counter.style.color = '#e74c3c'; // Rojo
+                } else if (this.textContent.length > 400) {
+                    counter.style.color = '#f39c12'; // Naranja
+                } else {
+                    counter.style.color = '#666'; // Gris
+                }
+            }
+        });
+        
         element.addEventListener('blur', function() {
             const questionId = this.closest('.survey-section').dataset.questionId;
             const field = this.dataset.field;
@@ -629,7 +673,10 @@ function addOption(questionId) {
     const newOptionDiv = document.createElement('div');
     newOptionDiv.className = 'option';
     newOptionDiv.innerHTML = `
-        <input type="text" placeholder="Nueva opción" value="">
+        <div style="display: flex; align-items: center; flex: 1;">
+            <input type="text" placeholder="Nueva opción" value="" maxlength="300" oninput="updateCharCounter(this, 300)" style="flex: 1;">
+            <span class="option-char-counter" style="margin-left: 8px; font-size: 0.75em; color: #666; white-space: nowrap;">0/300</span>
+        </div>
         <button onclick="toggleCorrectAnswerFromDOM(this)" class="correct-btn" title="Marcar como correcta">⚪</button>
         <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
     `;
@@ -942,6 +989,40 @@ async function saveSurvey() {
     try {
         const token = localStorage.getItem('token');
         
+        // PRIMERO: Leer el estado actual del DOM y sincronizar el array questions
+        console.log('🔍 Sincronizando con el DOM antes de guardar...');
+        const surveyColumn = document.querySelector('.survey-column');
+        const questionSections = Array.from(surveyColumn.querySelectorAll('.survey-section:not(.add-question-section)'));
+        
+        console.log('📊 Orden del DOM:', questionSections.map((s, i) => ({ domOrder: i+1, id: s.dataset.questionId })));
+        
+        // Crear un nuevo array con las preguntas en el orden del DOM, sin duplicados
+        const seenIds = new Set();
+        const questionsInOrder = [];
+        
+        questionSections.forEach((section, index) => {
+            const questionId = parseInt(section.dataset.questionId);
+            if (!seenIds.has(questionId)) {
+                const question = questions.find(q => q.id == questionId);
+                if (question) {
+                    question.posicion = index + 1;
+                    questionsInOrder.push(question);
+                    seenIds.add(questionId);
+                    console.log(`✅ Pregunta ${question.id} establecida en posición ${question.posicion}`);
+                } else {
+                    console.error(`❌ No se encontró pregunta con ID ${questionId} en el array`);
+                }
+            } else {
+                console.warn(`⚠️ Pregunta duplicada detectada y omitida: ${questionId}`);
+            }
+        });
+        
+        // Reemplazar el array questions con el nuevo orden (sin duplicados)
+        questions.length = 0;
+        questions.push(...questionsInOrder);
+        
+        console.log('📋 Array questions sincronizado ANTES de guardar preguntas:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+        
         // Guardar título de la encuesta
         const title = document.querySelector('.title-container h1').textContent.trim();
         if (title !== currentSurvey.titulo) {
@@ -954,13 +1035,6 @@ async function saveSurvey() {
                 body: JSON.stringify({ titulo: title })
             });
         }
-
-        // Actualizar posiciones basándose en el orden actual del array questions
-        questions.forEach((question, index) => {
-            question.posicion = index + 1;
-        });
-        
-        console.log('📋 Orden actual del array questions:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
         
         // Guardar todas las preguntas con sus posiciones
         // Usar el array questions que ya está en el orden correcto después del drag and drop
@@ -1027,8 +1101,8 @@ async function saveSurvey() {
         }
         
         const questionsToReorder = questions.map(q => ({ id: parseInt(q.id), posicion: parseInt(q.posicion) }));
-        console.log('Orden final de preguntas después de guardar:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
-        console.log('Enviando al servidor:', JSON.stringify({ encuesta_id: parseInt(currentSurvey.id), questions: questionsToReorder }));
+        console.log('📤 Array questions ANTES de crear array reorder:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+        console.log('📤 Enviando al servidor para reorder:', questionsToReorder);
 
         // Guardar el orden de las preguntas (esto es lo que realmente actualiza las posiciones en BD)
         const reorderResponse = await fetch(`${API_BASE_URL}/questions/reorder`, {
@@ -1052,10 +1126,9 @@ async function saveSurvey() {
             return;
         }
 
-        showSuccess('¡Encuesta guardada exitosamente!');
         markAsSaved(); // Marcar como guardado
         saveCurrentState(); // Guardar el estado después de guardar
-        showSuccess('La encuesta se ha actualizado correctamente.');
+        showSuccess('¡Encuesta guardada exitosamente!');
         
     } catch (error) {
         console.error('Error guardando encuesta:', error);
@@ -1149,75 +1222,136 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Inicializar drag and drop para preguntas
 function initializeDragAndDrop() {
-    const questionSections = document.querySelectorAll('.survey-section');
+    const surveyColumn = document.querySelector('.survey-column');
+    if (!surveyColumn) return;
+    
     const addQuestionSection = document.querySelector('.add-question-section');
     
-    questionSections.forEach(section => {
-        // NO hacer drag and drop con el add-question-section
-        if (section.classList.contains('add-question-section')) {
-            section.draggable = false;
-            section.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                // NO permitir drop en el add-question-section
-                e.dataTransfer.dropEffect = 'none';
-            });
+    // Configurar eventos en el contenedor principal
+    surveyColumn.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        
+        const dragging = document.querySelector('.dragging');
+        if (!dragging) return;
+        
+        // NO permitir insertar sobre el add-question-section
+        if (e.target === addQuestionSection || addQuestionSection.contains(e.target)) {
+            e.dataTransfer.dropEffect = 'none';
             return;
         }
         
+        e.dataTransfer.dropEffect = 'move';
+        
+        // Encontrar el elemento más cercano donde insertar
+        const afterElement = getDragAfterElement(surveyColumn, e.clientY);
+        
+        if (afterElement == null) {
+            // Insertar al final, antes del add-question-section
+            surveyColumn.insertBefore(dragging, addQuestionSection);
+        } else {
+            surveyColumn.insertBefore(dragging, afterElement);
+        }
+    });
+    
+    // Flag para prevenir procesamiento concurrente
+    let isProcessingDrop = false;
+    
+    surveyColumn.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        
+        const dragging = document.querySelector('.dragging');
+        if (!dragging) {
+            console.log('⚠️ No hay dragging, ignorando drop');
+            return;
+        }
+        
+        // Si ya hay un procesamiento en curso, esperar
+        if (isProcessingDrop) {
+            console.log('⏳ Procesamiento en curso, esperando...');
+            return;
+        }
+        
+        isProcessingDrop = true;
+        dragging.classList.remove('dragging');
+        
+        try {
+            // Esperar un momento para que el DOM se actualice completamente
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Obtener el nuevo orden del DOM
+            const questionSections = Array.from(surveyColumn.querySelectorAll('.survey-section:not(.add-question-section)'));
+            
+            console.log('📋 Elementos en DOM:', questionSections.length);
+            
+            // Reconstruir el array questions desde el DOM para evitar perder preguntas
+            const newQuestionsArray = [];
+            const seenIds = new Set();
+            
+            questionSections.forEach((section, index) => {
+                const questionId = parseInt(section.dataset.questionId);
+                if (!seenIds.has(questionId)) {
+                    let question = questions.find(q => q.id == questionId);
+                    
+                    // Si no existe en el array original, recargarla desde el DOM
+                    if (!question) {
+                        console.warn(`⚠️ Pregunta ${questionId} no encontrada en array, cargando desde DOM`);
+                        // Crear objeto temporal con datos básicos (se actualizará después)
+                        question = {
+                            id: questionId,
+                            posicion: index + 1,
+                            enunciado: section.querySelector('[data-field="enunciado"]')?.textContent.trim() || '',
+                            tipo: section.querySelector('[data-field="tipo"]')?.value || 'seleccion_unica'
+                        };
+                    } else {
+                        const oldPos = question.posicion;
+                        question.posicion = index + 1;
+                        console.log(`✅ Pregunta ${question.id} ("${question.enunciado}") movida de posición ${oldPos} a ${question.posicion}`);
+                    }
+                    
+                    newQuestionsArray.push(question);
+                    seenIds.add(questionId);
+                } else {
+                    console.warn(`⚠️ Pregunta duplicada ${questionId} omitida`);
+                }
+            });
+            
+            // Reemplazar el array completo para evitar inconsistencias
+            questions.length = 0;
+            questions.push(...newQuestionsArray);
+            
+            console.log('📊 Array reconstruido con', questions.length, 'preguntas');
+            
+            console.log('📊 Estado final del array:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
+            
+            // NO guardar automáticamente, solo marcar que hay cambios pendientes
+            // Esto evitará que la alerta aparezca hasta que se presione "Guardar Encuesta"
+            markAsChanged();
+            
+            // Mostrar notificación de forma asíncrona para no interferir con futuras interacciones
+            setTimeout(() => {
+                showSuccess('Posiciones guardadas, guarda la encuesta para actualizar');
+            }, 0);
+        } finally {
+            isProcessingDrop = false;
+        }
+    });
+    
+    // Configurar eventos de drag en cada pregunta
+    const questionSections = document.querySelectorAll('.survey-section:not(.add-question-section)');
+    
+    questionSections.forEach(section => {
         section.draggable = true;
         
         section.addEventListener('dragstart', (e) => {
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', section.dataset.questionId);
             section.classList.add('dragging');
+            console.log('🚀 Drag START - Pregunta:', section.dataset.questionId);
         });
         
         section.addEventListener('dragend', (e) => {
             section.classList.remove('dragging');
-        });
-        
-        section.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            
-            // NO permitir insertar después del add-question-section
-            const dragging = document.querySelector('.dragging');
-            if (!dragging) return;
-            
-            const surveyColumn = document.querySelector('.survey-column');
-            const addQuestionSection = surveyColumn.querySelector('.add-question-section');
-            
-            // Obtener todos los elementos que NO son add-question-section
-            const allSections = Array.from(surveyColumn.children);
-            const regularSections = allSections.filter(s => !s.classList.contains('add-question-section'));
-            
-            // Si estamos sobre el add-question-section, NO permitir drop
-            if (e.target === addQuestionSection || addQuestionSection.contains(e.target)) {
-                return;
-            }
-            
-            // Encontrar el elemento más cercano donde insertar
-            const afterElement = getDragAfterElement(section, e.clientY, regularSections);
-            
-            if (afterElement == null) {
-                // Insertar antes del add-question-section
-                surveyColumn.insertBefore(dragging, addQuestionSection);
-            } else {
-                surveyColumn.insertBefore(dragging, afterElement);
-            }
-        });
-        
-        section.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            
-            const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
-            const targetId = parseInt(section.dataset.questionId);
-            
-            console.log('🎯 Drop event - Dragged:', draggedId, 'Target:', targetId);
-            
-            if (draggedId !== targetId) {
-                await reorderQuestions(draggedId, targetId);
-            }
+            console.log('🛑 Drag END');
         });
     });
 }
@@ -1238,79 +1372,38 @@ function getDragAfterElement(container, y, elements = null) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
-// Reordenar preguntas en el array y guardar inmediatamente
-async function reorderQuestions(draggedId, targetId) {
-    console.log('🎯 Iniciando reordenamiento - Dragged ID:', draggedId, 'Target ID:', targetId);
-    console.log('Array actual:', questions.map(q => ({ id: q.id, tipo: typeof q.id })));
+// Función para actualizar el contador de caracteres en las opciones
+function updateCharCounter(input, maxLength) {
+    const currentLength = input.value.length;
     
-    // Convertir IDs a strings para comparar correctamente
-    const draggedIdStr = String(draggedId);
-    const targetIdStr = String(targetId);
+    // Buscar el contador (puede estar en nextElementSibling o en el parent)
+    let counter = null;
     
-    const draggedIndex = questions.findIndex(q => String(q.id) === draggedIdStr);
-    const targetIndex = questions.findIndex(q => String(q.id) === targetIdStr);
-    
-    console.log('Índices - Dragged:', draggedIndex, 'Target:', targetIndex);
-    console.log('ID buscado (dragged):', draggedIdStr, 'ID buscado (target):', targetIdStr);
-    
-    if (draggedIndex === -1 || targetIndex === -1) {
-        console.log('❌ Índices inválidos');
-        console.log('IDs en el array:', questions.map(q => ({ id: q.id, tipo: typeof q.id })));
-        return;
+    // Si está al lado (nextSibling)
+    if (input.nextElementSibling?.classList.contains('option-char-counter')) {
+        counter = input.nextElementSibling;
+    }
+    // Si está en el parent (como en texto abierto)
+    else if (input.parentElement) {
+        counter = input.parentElement.querySelector('.option-char-counter');
     }
     
-    // Mover el elemento en el array
-    const [movedQuestion] = questions.splice(draggedIndex, 1);
-    questions.splice(targetIndex, 0, movedQuestion);
-    
-    // Actualizar posiciones en el array local
-    questions.forEach((question, index) => {
-        question.posicion = index + 1;
-    });
-    
-    console.log('✅ Preguntas reordenadas localmente:', questions.map(q => ({ id: q.id, posicion: q.posicion, enunciado: q.enunciado })));
-    
-    // Marcar como cambiado
-    markAsChanged();
-    
-    // Guardar el nuevo orden inmediatamente en el servidor
-    try {
-        const questionsToReorder = questions.map(q => ({ id: parseInt(q.id), posicion: parseInt(q.posicion) }));
+    if (counter && counter.classList.contains('option-char-counter')) {
+        counter.textContent = `${currentLength}/${maxLength}`;
         
-        console.log('💾 Guardando orden inmediatamente:', questionsToReorder);
-        console.log('💾 Enviando al servidor:', JSON.stringify({
-            encuesta_id: parseInt(currentSurvey.id),
-            questions: questionsToReorder
-        }));
-        
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/questions/reorder`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                encuesta_id: parseInt(currentSurvey.id),
-                preguntas: questionsToReorder
-            })
-        });
-        
-        const data = await response.json();
-        console.log('📩 Respuesta del servidor:', data);
-        
-        if (data.ok) {
-            console.log('✅ Orden guardado exitosamente en el servidor');
-            saveCurrentState(); // Actualizar el estado guardado
-            console.log('🔔 Mostrando notificación...');
-            showSuccess('Posiciones de las preguntas guardadas');
-            console.log('✅ Notificación mostrada');
+        // Cambiar color según los caracteres
+        if (currentLength > maxLength * 0.9) {
+            counter.style.color = '#e74c3c'; // Rojo
+        } else if (currentLength > maxLength * 0.8) {
+            counter.style.color = '#f39c12'; // Naranja
         } else {
-            console.error('❌ Error guardando el orden:', data);
-            showError('Error al actualizar el orden de las preguntas');
+            counter.style.color = '#666'; // Gris
         }
-    } catch (error) {
-        console.error('❌ Error guardando el orden de preguntas:', error);
-        showError('Error de conexión al guardar el orden');
     }
+}
+
+// Función para ajustar automáticamente la altura del textarea
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.max(150, textarea.scrollHeight) + 'px';
 }

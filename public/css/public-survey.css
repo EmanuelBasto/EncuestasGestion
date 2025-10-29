@@ -161,14 +161,15 @@ header h1 {
 
 .text-input-container textarea {
     width: 100%;
-    padding: 15px;
+    padding: 20px;
     border: 2px solid #e9ecef;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 1rem;
     font-family: inherit;
-    resize: vertical;
-    min-height: 100px;
-    transition: border-color 0.3s ease;
+    resize: none;
+    min-height: 150px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
 }
 
 .text-input-container textarea:focus {
