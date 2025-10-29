@@ -283,11 +283,11 @@ function renderQuestionContent(question) {
                 <label class="correct-answer-label">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <span>Ejemplo de respuesta correcta:</span>
-                        <span class="option-char-counter" style="font-size: 0.75em; color: #666; white-space: nowrap;">${respuestaCorrectaLen}/300</span>
+                        <span class="option-char-counter" style="font-size: 0.75em; color: #666; white-space: nowrap;">${respuestaCorrectaLen}/800</span>
                     </div>
                     <textarea placeholder="Ingresa un ejemplo de respuesta correcta..." 
-                               maxlength="300"
-                               oninput="updateCharCounter(this, 300); autoResize(this);"
+                               maxlength="800"
+                               oninput="updateCharCounter(this, 800); autoResize(this);"
                                onchange="updateCorrectAnswer(${question.id}, this.value)"
                                class="correct-answer-input"
                                style="min-height: 150px; resize: vertical; overflow-y: hidden;">${respuestaCorrecta}</textarea>
@@ -312,7 +312,7 @@ function renderQuestionContent(question) {
                         </div>
                         <div class="checkbox-wrapper">
                             <input type="${inputType}" 
-                                   onclick="toggleCorrectAnswer(${option.id || 'null'})" 
+                                   onchange="toggleCorrectAnswer(${option.id || 'null'})" 
                                    ${option.es_correcta ? 'checked' : ''}
                                    class="${inputClass}"
                                    name="question_${question.id}">
@@ -685,7 +685,7 @@ function addOption(questionId) {
         </div>
         <div class="checkbox-wrapper">
             <input type="${inputType}" 
-                   onclick="toggleCorrectAnswerFromDOMNew(this)" 
+                   onchange="toggleCorrectAnswerFromDOMNew(this)" 
                    class="${inputClass}"
                    name="question_${questionId}">
         </div>
@@ -773,9 +773,32 @@ async function toggleCorrectAnswer(optionId) {
         const correctAnswers = question.opciones.filter(opt => opt.es_correcta);
         
         // Si estamos intentando marcar una nueva respuesta correcta
-        if (!option.es_correcta && correctAnswers.length >= 4) {
-            showError('Solo se permiten máximo 4 respuestas correctas en selección múltiple');
-            return;
+        if (!option.es_correcta) {
+            // Verificar en la UI cuántos checkboxes están marcados ANTES de marcar este
+            const questionElement = document.querySelector(`[data-question-id="${question.id}"]`);
+            if (questionElement) {
+                // Buscar el checkbox de esta opción específica
+                const optionElement = questionElement.querySelector(`[data-option-id="${optionId}"]`);
+                const thisCheckbox = optionElement ? optionElement.querySelector('.correct-checkbox') : null;
+                
+                const allCheckboxes = questionElement.querySelectorAll('.correct-checkbox');
+                let checkedCount = 0;
+                allCheckboxes.forEach(chk => {
+                    if (chk.checked) checkedCount++;
+                });
+                
+                // Si este checkbox está marcado, restar 1 del conteo (porque acabó de marcarse)
+                if (thisCheckbox && thisCheckbox.checked) {
+                    checkedCount--;
+                }
+                
+                if (checkedCount >= 4) {
+                    // Desmarcar el checkbox
+                    if (thisCheckbox) thisCheckbox.checked = false;
+                    showError('Solo se permiten máximo 4 respuestas correctas en selección múltiple');
+                    return;
+                }
+            }
         }
         
         // Si es selección múltiple, solo alternar esta opción
@@ -861,6 +884,28 @@ function toggleCorrectAnswerFromDOM(checkbox) {
                 radio.checked = false;
             }
         });
+    }
+    
+    // Si es selección múltiple, validar que no se marquen más de 4 respuestas correctas
+    if (question.tipo === 'seleccion_multiple' && isChecked) {
+        // Contar checkboxes marcados, restando el checkbox actual si está marcado
+        const allCheckboxes = questionSection.querySelectorAll('.correct-checkbox');
+        let checkedCount = 0;
+        allCheckboxes.forEach(chk => {
+            if (chk.checked) checkedCount++;
+        });
+        
+        // Restar el checkbox actual del conteo (porque acabó de marcarse)
+        if (checkbox.checked) {
+            checkedCount--;
+        }
+        
+        // Si ya hay 4 marcados y estamos intentando marcar otro, no permitirlo
+        if (checkedCount >= 4) {
+            checkbox.checked = false; // Desmarcar el checkbox
+            showError('Solo se permiten máximo 4 respuestas correctas en selección múltiple');
+            return;
+        }
     }
     
     // Actualizar el array local de preguntas
@@ -1056,23 +1101,31 @@ async function saveSurvey() {
                 }
             } else {
                 // Para preguntas de selección, recopilar opciones con respuestas correctas
-                const optionInputs = questionElement.querySelectorAll('.option input[type="text"]');
-                const correctButtons = questionElement.querySelectorAll('.correct-btn');
+                const optionDivs = questionElement.querySelectorAll('.option:not(.add-option)');
                 
-                opciones = Array.from(optionInputs).map((input, optIndex) => {
-                    const correctBtn = correctButtons[optIndex];
-                    const es_correcta = correctBtn ? correctBtn.classList.contains('correct') : false;
+                opciones = Array.from(optionDivs).map((optionDiv) => {
+                    const textInput = optionDiv.querySelector('input[type="text"]');
+                    const correctInput = optionDiv.querySelector('.correct-checkbox, .correct-radio');
                     
-                    // Buscar la opción original por índice (el orden debe coincidir)
-                    let optionData = question.opciones && question.opciones[optIndex];
+                    const texto = textInput ? textInput.value.trim() : '';
+                    const es_correcta = correctInput ? correctInput.checked : false;
                     
-                    // Si no hay opción en ese índice, buscar por texto
+                    // Buscar la opción original por ID si existe
+                    const optionId = optionDiv.dataset.optionId;
+                    let optionData = null;
+                    
+                    if (optionId && question.opciones) {
+                        optionData = question.opciones.find(opt => opt.id == optionId);
+                    }
+                    
+                    // Si no hay ID, buscar por índice (el orden debe coincidir)
                     if (!optionData && question.opciones) {
-                        optionData = question.opciones.find(opt => opt.texto === input.value.trim());
+                        const optIndex = Array.from(questionElement.querySelectorAll('.option:not(.add-option)')).indexOf(optionDiv);
+                        optionData = question.opciones[optIndex];
                     }
                     
                     return {
-                        texto: input.value.trim(),
+                        texto: texto,
                         es_correcta: es_correcta,
                         id: optionData ? optionData.id : null
                     };
@@ -1413,6 +1466,8 @@ function toggleCorrectAnswerFromDOMNew(checkbox) {
     
     if (!question) return;
     
+    const isChecked = checkbox.checked;
+    
     // Si es selección única, desmarcar las otras
     if (question.tipo === 'seleccion_unica') {
         const allInputs = questionSection.querySelectorAll('.correct-radio');
@@ -1421,13 +1476,28 @@ function toggleCorrectAnswerFromDOMNew(checkbox) {
                 chk.checked = false;
             }
         });
-    } else {
-        const allInputs = questionSection.querySelectorAll('.correct-checkbox');
-        allInputs.forEach(chk => {
-            if (chk !== checkbox && chk.classList.contains('correct-checkbox')) {
-                // Para selección múltiple, permitir múltiples selecciones
-            }
+    }
+    
+    // Si es selección múltiple, validar que no se marquen más de 4 respuestas correctas
+    if (question.tipo === 'seleccion_multiple' && isChecked) {
+        // Contar checkboxes marcados, restando el checkbox actual si está marcado
+        const allCheckboxes = questionSection.querySelectorAll('.correct-checkbox');
+        let checkedCount = 0;
+        allCheckboxes.forEach(chk => {
+            if (chk.checked) checkedCount++;
         });
+        
+        // Restar el checkbox actual del conteo (porque acabó de marcarse)
+        if (checkbox.checked) {
+            checkedCount--;
+        }
+        
+        // Si ya hay 4 marcados y estamos intentando marcar otro, no permitirlo
+        if (checkedCount >= 4) {
+            checkbox.checked = false; // Desmarcar el checkbox
+            showError('Solo se permiten máximo 4 respuestas correctas en selección múltiple');
+            return;
+        }
     }
     
     // Marcar como cambiado
