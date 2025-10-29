@@ -296,6 +296,8 @@ function renderQuestionContent(question) {
         `;
     } else {
         const options = question.opciones || [];
+        const inputType = question.tipo === 'seleccion_unica' ? 'radio' : 'checkbox';
+        const inputClass = question.tipo === 'seleccion_unica' ? 'correct-radio' : 'correct-checkbox';
         return `
             <div class="options">
                 ${options.map(option => `
@@ -308,11 +310,13 @@ function renderQuestionContent(question) {
                                    style="flex: 1;">
                             <span class="option-char-counter" style="margin-left: 8px; font-size: 0.75em; color: #666; white-space: nowrap;">${(option.texto || '').length}/300</span>
                         </div>
-                        <button onclick="toggleCorrectAnswer(${option.id || 'null'})" 
-                                class="correct-btn ${option.es_correcta ? 'correct' : ''}" 
-                                title="${option.es_correcta ? 'Quitar como correcta' : 'Marcar como correcta'}">
-                            ${option.es_correcta ? '✅' : '⚪'}
-                        </button>
+                        <div class="checkbox-wrapper">
+                            <input type="${inputType}" 
+                                   onclick="toggleCorrectAnswer(${option.id || 'null'})" 
+                                   ${option.es_correcta ? 'checked' : ''}
+                                   class="${inputClass}"
+                                   name="question_${question.id}">
+                        </div>
                         <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
                     </div>
                 `).join('')}
@@ -670,6 +674,8 @@ function addOption(questionId) {
     const optionsContainer = questionSection.querySelector('.options');
     
     // Crear el nuevo elemento de opción
+    const inputType = question.tipo === 'seleccion_unica' ? 'radio' : 'checkbox';
+    const inputClass = question.tipo === 'seleccion_unica' ? 'correct-radio' : 'correct-checkbox';
     const newOptionDiv = document.createElement('div');
     newOptionDiv.className = 'option';
     newOptionDiv.innerHTML = `
@@ -677,7 +683,12 @@ function addOption(questionId) {
             <input type="text" placeholder="Nueva opción" value="" maxlength="300" oninput="updateCharCounter(this, 300)" style="flex: 1;">
             <span class="option-char-counter" style="margin-left: 8px; font-size: 0.75em; color: #666; white-space: nowrap;">0/300</span>
         </div>
-        <button onclick="toggleCorrectAnswerFromDOM(this)" class="correct-btn" title="Marcar como correcta">⚪</button>
+        <div class="checkbox-wrapper">
+            <input type="${inputType}" 
+                   onclick="toggleCorrectAnswerFromDOMNew(this)" 
+                   class="${inputClass}"
+                   name="question_${questionId}">
+        </div>
         <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
     `;
     
@@ -789,20 +800,26 @@ async function toggleCorrectAnswer(optionId) {
         // Actualizar UI directamente sin re-renderizar toda la pregunta
         const questionElement = document.querySelector(`[data-question-id="${question.id}"]`);
         if (questionElement) {
+            // Actualizar el input que corresponde a esta opción
             const optionElement = questionElement.querySelector(`[data-option-id="${optionId}"]`);
             if (optionElement) {
-                const correctBtn = optionElement.querySelector('.correct-btn');
-                if (correctBtn) {
-                    if (option.es_correcta) {
-                        correctBtn.classList.add('correct');
-                        correctBtn.textContent = '✅';
-                        correctBtn.title = 'Quitar como correcta';
-                    } else {
-                        correctBtn.classList.remove('correct');
-                        correctBtn.textContent = '⚪';
-                        correctBtn.title = 'Marcar como correcta';
-                    }
+                const correctInput = optionElement.querySelector('.correct-checkbox, .correct-radio');
+                if (correctInput) {
+                    correctInput.checked = option.es_correcta;
                 }
+            }
+            
+            // Si es selección única, actualizar todos los radio buttons
+            if (question.tipo === 'seleccion_unica') {
+                const allRadios = questionElement.querySelectorAll('.correct-radio');
+                allRadios.forEach(radio => {
+                    const optDiv = radio.closest('.option');
+                    const optId = optDiv.dataset.optionId;
+                    const opt = question.opciones.find(o => o.id == optId);
+                    if (opt) {
+                        radio.checked = opt.es_correcta;
+                    }
+                });
             }
         }
     } catch (error) {
@@ -826,53 +843,32 @@ async function updateCorrectAnswer(questionId, respuestaCorrecta) {
 }
 
 // Alternar respuesta correcta desde el DOM
-function toggleCorrectAnswerFromDOM(button) {
-    const optionDiv = button.closest('.option');
+function toggleCorrectAnswerFromDOM(checkbox) {
+    const optionDiv = checkbox.closest('.option');
     const questionSection = optionDiv.closest('.survey-section');
     const questionId = questionSection.dataset.questionId;
     const question = questions.find(q => q.id == questionId);
     
     if (!question) return;
     
-    const isCorrect = button.classList.contains('correct');
+    const isChecked = checkbox.checked;
     
-    // Si es selección única, validar que solo haya una respuesta correcta
+    // Si es selección única, desmarcar las otras
     if (question.tipo === 'seleccion_unica') {
-        const correctButtons = questionSection.querySelectorAll('.correct-btn.correct');
-        
-        // Si ya hay una respuesta correcta y estamos intentando marcar otra
-        if (correctButtons.length > 0 && !isCorrect) {
-            showError('En selección única solo puedes marcar una respuesta correcta');
-            return;
-        }
-        
-        // Desmarcar todas las otras opciones
-        const allButtons = questionSection.querySelectorAll('.correct-btn');
-        allButtons.forEach(btn => {
-            if (btn !== button) {
-                btn.classList.remove('correct');
-                btn.textContent = '⚪';
-                btn.title = 'Marcar como correcta';
+        const allRadios = questionSection.querySelectorAll('.correct-radio');
+        allRadios.forEach(radio => {
+            if (radio !== checkbox) {
+                radio.checked = false;
             }
         });
     }
     
-    if (isCorrect) {
-        button.classList.remove('correct');
-        button.textContent = '⚪';
-        button.title = 'Marcar como correcta';
-    } else {
-        button.classList.add('correct');
-        button.textContent = '✅';
-        button.title = 'Quitar como correcta';
-    }
-    
     // Actualizar el array local de preguntas
-    const optionIndex = Array.from(questionSection.querySelectorAll('.option')).indexOf(optionDiv);
+    const optionIndex = Array.from(questionSection.querySelectorAll('.option')).indexOf(optionDiv) - 1; // -1 porque el último es "Añadir opción"
     
     // Si la opción ya existe en el array
     if (question.opciones && question.opciones[optionIndex]) {
-        question.opciones[optionIndex].es_correcta = !isCorrect;
+        question.opciones[optionIndex].es_correcta = isChecked;
     } else {
         // Si la opción es nueva y no está en el array, agregarla
         const input = optionDiv.querySelector('input[type="text"]');
@@ -880,7 +876,7 @@ function toggleCorrectAnswerFromDOM(button) {
             if (!question.opciones) question.opciones = [];
             question.opciones.push({ 
                 texto: input.value.trim(), 
-                es_correcta: !isCorrect,
+                es_correcta: isChecked,
                 id: null // Nueva opción sin ID
             });
         }
@@ -1406,4 +1402,34 @@ function updateCharCounter(input, maxLength) {
 function autoResize(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = Math.max(150, textarea.scrollHeight) + 'px';
+}
+
+// Alternar respuesta correcta desde el DOM para nuevas opciones
+function toggleCorrectAnswerFromDOMNew(checkbox) {
+    const optionDiv = checkbox.closest('.option');
+    const questionSection = optionDiv.closest('.survey-section');
+    const questionId = questionSection.dataset.questionId;
+    const question = questions.find(q => q.id == questionId);
+    
+    if (!question) return;
+    
+    // Si es selección única, desmarcar las otras
+    if (question.tipo === 'seleccion_unica') {
+        const allInputs = questionSection.querySelectorAll('.correct-radio');
+        allInputs.forEach(chk => {
+            if (chk !== checkbox) {
+                chk.checked = false;
+            }
+        });
+    } else {
+        const allInputs = questionSection.querySelectorAll('.correct-checkbox');
+        allInputs.forEach(chk => {
+            if (chk !== checkbox && chk.classList.contains('correct-checkbox')) {
+                // Para selección múltiple, permitir múltiples selecciones
+            }
+        });
+    }
+    
+    // Marcar como cambiado
+    markAsChanged();
 }
