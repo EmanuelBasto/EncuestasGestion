@@ -128,7 +128,7 @@ function renderSurveys() {
     }
 
     surveysContainer.innerHTML = encuestas.map(encuesta => `
-        <div class="survey-card" data-id="${encuesta.id}">
+        <div class="survey-card" data-id="${encuesta.id}" onclick="editSurvey(${encuesta.id})">
             <div class="survey-header">
                 <h3>${encuesta.titulo}</h3>
                 
@@ -139,16 +139,16 @@ function renderSurveys() {
                 <span>📅 ${new Date(encuesta.creada_en).toLocaleDateString()}</span>
             </div>
             <div class="survey-actions">
-                <button class="btn-edit" onclick="editSurvey(${encuesta.id})">
+                <button class="btn-edit" onclick="event.stopPropagation(); editSurvey(${encuesta.id})">
                     ✏️ Editar
                 </button>
-                <button class="btn-results" onclick="viewResults(${encuesta.id})">
+                <button class="btn-results" onclick="event.stopPropagation(); viewResults(${encuesta.id})">
                     📊 Ver Resultados
                 </button>
-                <button class="btn-share" onclick="shareSurvey(${encuesta.id})">
+                <button class="btn-share" onclick="event.stopPropagation(); shareSurvey(${encuesta.id})">
                     🔗 Compartir
                 </button>
-                <button class="btn-delete" onclick="deleteSurvey(${encuesta.id})">
+                <button class="btn-delete" onclick="event.stopPropagation(); deleteSurvey(${encuesta.id})">
                     🗑️ Eliminar
                 </button>
             </div>

@@ -347,6 +347,14 @@ document.addEventListener('DOMContentLoaded', () => {
         exportBtn.addEventListener('click', exportData);
     }
 
+    // Configurar botón de volver a encuestas
+    const backBtn = document.getElementById('backToSurveysBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'encuesta.html';
+        });
+    }
+
     // Limpiar interval al cerrar la página
     window.addEventListener('beforeunload', stopAutoRefresh);
 });

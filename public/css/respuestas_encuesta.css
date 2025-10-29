@@ -80,6 +80,22 @@ nav ul li:nth-child(2) {
     margin-top: 15px;
 }
 
+.back-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.back-btn:hover {
+    background-color: #5a6268;
+}
+
 .export-btn {
     background-color: #27ae60;
     color: white;

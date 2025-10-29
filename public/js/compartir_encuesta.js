@@ -343,4 +343,12 @@ document.addEventListener('DOMContentLoaded', () => {
             item.addEventListener('click', goToResponses);
         }
     });
+
+    // Configurar botón de volver a encuestas
+    const backBtn = document.getElementById('backToSurveysBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'encuesta.html';
+        });
+    }
 });
