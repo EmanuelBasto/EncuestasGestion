@@ -310,8 +310,6 @@ function renderQuestionContent(question) {
                 { texto: 'Opción 2', es_correcta: false }
             ];
         }
-        const inputType = question.tipo === 'seleccion_unica' ? 'radio' : 'checkbox';
-        const inputClass = question.tipo === 'seleccion_unica' ? 'correct-radio' : 'correct-checkbox';
         return `
             <div class="options">
                 ${options.map(option => `
@@ -323,13 +321,6 @@ function renderQuestionContent(question) {
                                    onchange="updateOption(${option.id || 'null'}, this.value)"
                                    style="flex: 1;">
                             <span class="option-char-counter" style="margin-left: 8px; font-size: 0.75em; color: #666; white-space: nowrap;">${(option.texto || '').length}/300</span>
-                        </div>
-                        <div class="checkbox-wrapper">
-                            <input type="${inputType}" 
-                                   onchange="toggleCorrectAnswer(${option.id || 'null'})" 
-                                   ${option.es_correcta ? 'checked' : ''}
-                                   class="${inputClass}"
-                                   name="question_${question.id}">
                         </div>
                         <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
                     </div>
@@ -719,20 +710,12 @@ function addOption(questionId) {
     const optionsContainer = questionSection.querySelector('.options');
     
     // Crear el nuevo elemento de opción
-    const inputType = question.tipo === 'seleccion_unica' ? 'radio' : 'checkbox';
-    const inputClass = question.tipo === 'seleccion_unica' ? 'correct-radio' : 'correct-checkbox';
     const newOptionDiv = document.createElement('div');
     newOptionDiv.className = 'option';
     newOptionDiv.innerHTML = `
         <div style="display: flex; align-items: center; flex: 1;">
             <input type="text" placeholder="Nueva opción" value="" maxlength="300" oninput="updateCharCounter(this, 300)" style="flex: 1;">
             <span class="option-char-counter" style="margin-left: 8px; font-size: 0.75em; color: #666; white-space: nowrap;">0/300</span>
-        </div>
-        <div class="checkbox-wrapper">
-            <input type="${inputType}" 
-                   onchange="toggleCorrectAnswerFromDOMNew(this)" 
-                   class="${inputClass}"
-                   name="question_${questionId}">
         </div>
         <button onclick="removeOptionFromDOM(this)" class="remove-option">×</button>
     `;

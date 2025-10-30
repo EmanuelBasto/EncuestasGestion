@@ -45,7 +45,7 @@ router.get('/survey/:token', async (req, res) => {
 
     // Obtener preguntas con opciones
     const { rows: questionsRows } = await query(
-      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta,
               COALESCE(
                 json_agg(
                   json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
@@ -56,7 +56,7 @@ router.get('/survey/:token', async (req, res) => {
        FROM preguntas p
        LEFT JOIN opciones o ON p.id = o.pregunta_id
        WHERE p.encuesta_id = $1
-       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion
+       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta
        ORDER BY p.posicion`,
       [link.id]
     );
@@ -127,7 +127,7 @@ router.get('/check-version/:token', async (req, res) => {
 
     // Obtener preguntas con opciones para calcular el hash
     const { rows: questionsRows } = await query(
-      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion,
+      `SELECT p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta,
               COALESCE(
                 json_agg(
                   json_build_object('id', o.id, 'texto', o.texto, 'posicion', o.posicion)
@@ -138,7 +138,7 @@ router.get('/check-version/:token', async (req, res) => {
        FROM preguntas p
        LEFT JOIN opciones o ON p.id = o.pregunta_id
        WHERE p.encuesta_id = $1
-       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion
+       GROUP BY p.id, p.enunciado, p.tipo, p.obligatoria, p.posicion, p.respuesta_correcta
        ORDER BY p.posicion`,
       [linkRows[0].id]
     );

@@ -257,8 +257,10 @@ function renderMultipleChoice(question) {
 
 // Renderizar texto abierto
 function renderTextInput(question) {
+    const hint = (question.respuesta_correcta || '').trim();
     return `
         <div class="text-input-container">
+            ${hint ? `<div class="text-hint" style="margin-bottom: 8px; color: #555; font-size: 0.95em; background: #f7f9fc; border: 1px solid #e3e8f0; padding: 10px 12px; border-radius: 6px;">${hint}</div>` : ''}
             <textarea name="question_${question.id}" 
                       placeholder="Escribe tu respuesta aquí (máximo 800 caracteres)..."
                       onchange="updateResponse(${question.id}, this.value)"
